@@ -11,10 +11,11 @@ namespace testDemo
     {
         private Config _config;
         private string commandGenerated;
+
         public MainWindow()
         {
             InitializeComponent();
-            InputTextBox.Text = "默认发送的消息内容"; // 初始内容
+            InputTextBox.Text = ""; // 初始内容
 
             // 加载配置文件
             _config = Config.Load();
@@ -76,6 +77,8 @@ namespace testDemo
                 using (TcpClient client = new TcpClient(_config.ServerIP, _config.ServerPort))
                 {
                     NetworkStream stream = client.GetStream();
+                    stream.ReadTimeout = 5000; //设置读取超时时间，单位是毫秒
+
                     string formattedMessage = $"{(char)0x02}{commandGenerated}{(char)0x03}";
                     byte[] dataToSend = Encoding.ASCII.GetBytes(formattedMessage);
 
@@ -83,7 +86,7 @@ namespace testDemo
                     AppendMessage($"发送: {formattedMessage}");
 
                     byte[] buffer = new byte[1024];
-                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length); // 如果超时，会抛出异常
 
                     if (bytesRead > 0)
                     {
