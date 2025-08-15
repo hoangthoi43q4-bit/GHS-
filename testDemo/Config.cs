@@ -1,7 +1,9 @@
-﻿using System.IO;
+﻿using GHPHandShake.Models;
 using Newtonsoft.Json;
+using System.IO;
+using System.Windows;
 
-namespace testDemo
+namespace GHPHandShake
 {
     class Config
     {
@@ -31,6 +33,9 @@ namespace testDemo
 
             return new Config();
         }
+
+
+        
 
     }
 }

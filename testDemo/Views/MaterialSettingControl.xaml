@@ -1,0 +1,28 @@
+﻿<UserControl  x:Class="GHPHandShake.Views.MaterialSettingControl"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Height="800" Width="600">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Text="物料类型：" VerticalAlignment="Center"/>
+            <TextBox x:Name="TypeNameBox" Width="120" Margin="5,0"/>
+            <Button Content="添加类型" Click="AddType_Click"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,5">
+            <TextBlock Text="所属类型：" VerticalAlignment="Center"/>
+            <TextBox x:Name="SubTypeParentBox" Width="120" Margin="5,0"/>
+            <TextBlock Text="子类名：" VerticalAlignment="Center"/>
+            <TextBox x:Name="SubTypeNameBox" Width="120" Margin="5,0"/>
+            <Button Content="添加子类" Click="AddSubType_Click"/>
+        </StackPanel>
+
+        <ListBox x:Name="TypeList" Grid.Row="2" BorderBrush="Gray" BorderThickness="1"/>
+    </Grid>
+</UserControl>

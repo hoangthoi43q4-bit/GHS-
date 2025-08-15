@@ -1,15 +1,22 @@
-﻿using System;
+﻿using GHPHandShake;
+using GHPHandShake.Models;
+using GHPHandShake.Views;
+using GHPHandShake.Windows;
+using Newtonsoft.Json;
+using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
-using testDemo;
 
-namespace testDemo
+
+namespace GHPHandShake
 {
     public partial class MainWindow : Window
     {
         private Config _config;
+        private MaterialConfig _materialConfig;
         private string commandGenerated;
 
         public MainWindow()
@@ -17,17 +24,36 @@ namespace testDemo
             InitializeComponent();
             InputTextBox.Text = ""; // 初始内容
 
-            // 加载配置文件
+            // 加载IP配置文件
             _config = Config.Load();
             AppendMessage($"加载配置: IP={_config.ServerIP}, 端口={_config.ServerPort},站位 ={_config.DeviceName}");
+            //加载material配置文件
+            LoadMaterialConfig();
+
         }
 
+        //读区 material config
+        public void LoadMaterialConfig()
+        {
+            const string configPath = "materials.json";
+            if (File.Exists(configPath))
+            {
+                string json = File.ReadAllText(configPath);
+                _materialConfig = JsonConvert.DeserializeObject<MaterialConfig>(json);
+            }
+            else
+            {
+                MessageBox.Show("配置文件 materials.json 不存在，无法初始化！");
+                _materialConfig = new MaterialConfig();
+            }
+        }
         // 按下回车键
         private void InputTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
                 SendMessage();
+                InputTextBox.Clear();
             }
         }
 
@@ -35,6 +61,7 @@ namespace testDemo
         private void SendButton_Click(object sender, RoutedEventArgs e)
         {
             SendMessage();
+            InputTextBox.Clear();
         }
 
         // 点击设置按钮
@@ -51,6 +78,13 @@ namespace testDemo
             }
         }
 
+        // 点击物料设置按钮
+        private void MaterialSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var MaterialSettingsWindow = new MaterialSettingWindow();
+            MaterialSettingsWindow.ShowDialog();
+        }
+
         // 发送消息逻辑
         private void SendMessage()
         {
@@ -64,12 +98,13 @@ namespace testDemo
                 return;
             }
 
+            // 调用StringProcess处理输入字符串
             if (!string.IsNullOrEmpty(message))
             {
                 StringProcessor processor = new StringProcessor();
                 
-                commandGenerated = processor.GenerateLoadCommand(message, _config.DeviceName);
-
+                commandGenerated = processor.GenerateLoadCommand(message, _config.DeviceName , config:_materialConfig);
+                
             }
 
             try

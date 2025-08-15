@@ -2,7 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 
-namespace testDemo
+namespace GHPHandShake
 {
     public partial class SettingsWindow : Window
     {
