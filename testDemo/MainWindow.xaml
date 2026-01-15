@@ -41,6 +41,16 @@
             <Button Content="发送" 
                     Padding="10" 
                     Click="SendButton_Click" />
+
+            
+
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="2" Margin="10" HorizontalAlignment="Left">
+            <Button Content="Release Info" 
+                Padding="10" 
+                Click="ReleaseInfoButton_Click" 
+                HorizontalAlignment="Left"/>
         </StackPanel>
     </Grid>
 </Window>

@@ -13,7 +13,14 @@ namespace GHPHandShake.Services
     {
         public static int GetMatPos(string input ,MaterialConfig config  )
         {
+            //剔除“-” 和“ ”
+            if (input.Contains("-") || input.Contains(""))
+            {
+                input = input.Replace("-", "").Replace(" ", "");
+            }
+
             string MatchValue = MaterialClassifier.GetTypeBySubTypeMatch(input, config);
+             
 
             if (Common.Constants.AllTypeNames.Contains(MatchValue))
             {

@@ -32,10 +32,13 @@ namespace GHPHandShake.Views
                 {
                     pContent = segment.Length > 1 ? segment.Substring(1) : "";
                     //剔除“-” 和“ ”
-                    if (pContent.Contains("-") || pContent.Contains("") ) 
-                    {
-                        pContent = pContent.Replace("-", "").Replace(" ", "");
-                    }
+                    //if (pContent.Contains("-") || pContent.Contains("") ) 
+                    //{
+                    //    pContent = pContent.Replace("-", "").Replace(" ", "");
+                    //}
+
+                    pContent = pContent.PadLeft(18, '0');     
+               
                 }
                 else if (segment.StartsWith("V") && string.IsNullOrEmpty(vContent))
                 {
@@ -49,7 +52,7 @@ namespace GHPHandShake.Views
                 }
             }
 
-            return $"00000{pContent}@{vContent}@{s3Content}";
+            return $"{pContent}@{vContent}@{s3Content}";
         }
 
         public string GenerateLoadCommand(
@@ -63,10 +66,43 @@ namespace GHPHandShake.Views
             string timestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
 
             //使用SelectMatPos方法 获得mat_pos
-            int matPos = SelectMatPos.GetMatPos(input, config);
+            int matPos = SelectMatPos.GetMatPos(processed, config);
 
             return $"LOAD_MATERIAL,{StationName},10,{timestamp}," +
                    $"<LoadMaterial mat_pos_1=\"{matPos}\" mat_uid_1=\"{processed}\" tokens=\"{tokens}\" />";
+        }
+
+        public string FindMaterial(string input)
+        {
+            string[] segments = input.Split(new char[] { '@' }, StringSplitOptions.None);
+
+            string Material = "";
+
+            foreach (string segment in segments)
+            {
+                if (!string.IsNullOrEmpty(Material) )
+                    
+                {
+                    break;
+                }
+
+                if (segment.StartsWith("P") && string.IsNullOrEmpty(Material))
+                {
+                    Material = segment.Length > 1 ? segment.Substring(1) : "";
+                    ////剔除“-” 和“ ”
+                    if (Material.Contains("-") || Material.Contains(""))
+                    {
+                        Material = Material.Replace("-", "").Replace(" ", "");
+                    }
+
+                    
+
+                }
+              
+            }
+
+            return $"{Material}";
+
         }
     }
 }

@@ -4,9 +4,13 @@ using GHPHandShake.Views;
 using GHPHandShake.Windows;
 using Newtonsoft.Json;
 using System;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
@@ -18,6 +22,19 @@ namespace GHPHandShake
         private Config _config;
         private MaterialConfig _materialConfig;
         private string commandGenerated;
+        private MaterialSettingControl materialSettingControl = new MaterialSettingControl();
+        /// <summary>
+        /// 一个辅助类，用于在方法之间传递物料查找的结果。
+        /// A helper class to pass the results of the material lookup between methods.
+        /// </summary>
+        public class MessageRoutingInfo
+        {
+            public bool IsFound { get; set; }
+            public string TargetIp { get; set; }
+            public int TargetPort { get; set; }
+            public string MessageToSend { get; set; } // 这是物料的 SubTypeName
+            public string AssociatedMachineName { get; set; } // 这是找到的设备的 EquipmentId
+        }
 
         public MainWindow()
         {
@@ -65,15 +82,41 @@ namespace GHPHandShake
         }
 
         // 点击设置按钮
+        // 点击设置按钮
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            var settingsWindow = new SettingsWindow(_config.ServerIP, _config.ServerPort, _config.DeviceName);
+            // 1. 创建一个代表当前配置的 MachineInfo 对象
+            //    This tells the settings window which machine should be selected when it opens.
+            var currentMachine = new MachineInfo
+            {
+                ServerIp = _config.ServerIP,
+                ServerPort = _config.ServerPort,
+                EquipmentId = _config.DeviceName
+            };
+
+            // 2. 准备要传递给设置窗口的完整设备列表
+            //    You will need to load this list from your config file.
+            //    For this example, let's assume your _config object has a list property called "AllMachines".
+            //    If _config.AllMachines is null (first time running), create a new empty list.
+            var allMachinesList = _config.AllMachines ?? new ObservableCollection<MachineInfo>();
+
+            // 3. 使用新的构造函数创建和打开窗口
+            var settingsWindow = new SettingsWindow(currentMachine, allMachinesList);
+
+            // 4. 显示窗口，并检查用户是否点击了 "保存并应用选择"
             if (settingsWindow.ShowDialog() == true)
             {
-                _config.ServerIP = settingsWindow.ServerIp;
-                _config.ServerPort = settingsWindow.ServerPort;
-                _config.DeviceName = settingsWindow.EquipmentId;
+                // 5. 从窗口的公开属性中获取选定的设备信息，并更新主配置
+                _config.ServerIP = settingsWindow.SelectedServerIp;
+                _config.ServerPort = settingsWindow.SelectedServerPort;
+                _config.DeviceName = settingsWindow.SelectedEquipmentId;
+
+                // 6. (重要!) 获取在设置窗口中被修改过的完整列表，并更新到主配置中
+                _config.AllMachines = settingsWindow.MachineList;
+
+                // 7. 保存所有更改 (包括当前选择和完整的设备列表)
                 _config.Save();
+
                 AppendMessage($"设置已更新: IP={_config.ServerIP}, 端口={_config.ServerPort}, 站位={_config.DeviceName}");
             }
         }
@@ -86,11 +129,12 @@ namespace GHPHandShake
         }
 
         // 发送消息逻辑
-        private void SendMessage()
+        private async void SendMessage()
         {
             string message = InputTextBox.Text.Trim();
-            string EquipmentID= _config.DeviceName.Trim();
-                    
+            StringProcessor processor = new StringProcessor();
+
+            string Matlabel = processor.FindMaterial(message);
 
             if (string.IsNullOrEmpty(message))
             {
@@ -98,30 +142,50 @@ namespace GHPHandShake
                 return;
             }
 
-            // 调用StringProcess处理输入字符串
-            if (!string.IsNullOrEmpty(message))
+            // 步骤 1: 根据输入的物料号查找其路由信息（目标IP、端口等）。
+            
+
+            if (string.IsNullOrEmpty(Matlabel))
             {
-                StringProcessor processor = new StringProcessor();
-                
-                commandGenerated = processor.GenerateLoadCommand(message, _config.DeviceName , config:_materialConfig);
-                
+                MessageBox.Show("发送内容中不包含物料信息！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
+
+            MessageRoutingInfo routingInfo = FindRoutingForMaterial(Matlabel);
+
+            // 步骤 2: 如果在配置中找不到该物料，则停止执行。
+            if (!routingInfo.IsFound)
+            {
+                return;
+            }
+
+            // 步骤 3: 使用查找到的信息来生成最终的指令。
+            
+            string commandGenerated = processor.GenerateLoadCommand(message, routingInfo.AssociatedMachineName, config: _materialConfig);
+
+            // 【新增调试信息】在连接前，明确打印出将要使用的IP和端口。
+            AppendMessage($"准备连接到查找到的目标: {routingInfo.TargetIp}:{routingInfo.TargetPort}");
 
             try
             {
-                using (TcpClient client = new TcpClient(_config.ServerIP, _config.ServerPort))
+                using (TcpClient client = new TcpClient())
                 {
+                    // 【异步连接】不会阻塞UI
+                    await client.ConnectAsync(routingInfo.TargetIp, routingInfo.TargetPort);
+
                     NetworkStream stream = client.GetStream();
-                    stream.ReadTimeout = 5000; //设置读取超时时间，单位是毫秒
+                    stream.ReadTimeout = 5000;
 
                     string formattedMessage = $"{(char)0x02}{commandGenerated}{(char)0x03}";
                     byte[] dataToSend = Encoding.ASCII.GetBytes(formattedMessage);
 
-                    stream.Write(dataToSend, 0, dataToSend.Length);
-                    AppendMessage($"发送: {formattedMessage}");
+                    // 【异步发送】不会阻塞UI
+                    await stream.WriteAsync(dataToSend, 0, dataToSend.Length);
+                    AppendMessage($"发送到 {routingInfo.TargetIp}:{routingInfo.TargetPort} -> {formattedMessage}");
 
                     byte[] buffer = new byte[1024];
-                    int bytesRead = stream.Read(buffer, 0, buffer.Length); // 如果超时，会抛出异常
+                    // 【异步读取】不会阻塞UI
+                    int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
 
                     if (bytesRead > 0)
                     {
@@ -143,9 +207,69 @@ namespace GHPHandShake
         // 更新消息列表
         private void AppendMessage(string message)
         {
-            MessageListBox.Items.Add(message);
+            MessageListBox.Items.Add(DateTime.Now +" "+ message);
             MessageListBox.ScrollIntoView(message);
         }
+
+        //
+        private void ReleaseInfoButton_Click(object sender, EventArgs e)
+        {
+            var ReleaseInfoWindow = new ReleaseInfoWindow();
+            ReleaseInfoWindow.ShowDialog();
+        }
+
+        /// <summary>
+        /// 根据物料号查找其配置信息。此函数现在返回一个包含所有需要信息的结果对象。
+        /// </summary>
+        /// <param name="receivedMaterialNumber">要查找的物料号</param>
+        /// <returns>一个 MessageRoutingInfo 对象</returns>
+        public MessageRoutingInfo FindRoutingForMaterial(string receivedMaterialNumber)
+        {
+            AppendMessage($"接收到物料号: {receivedMaterialNumber}。正在查找...");
+
+            var materialTypes = materialSettingControl.MaterialTypesList;
+            if (materialTypes == null)
+            {
+                AppendMessage("[错误] 物料配置未加载。");
+                return new MessageRoutingInfo { IsFound = false };
+            }
+
+            MaterialSubType foundMaterial = null;
+            foreach (var type in materialTypes)
+            {
+                foundMaterial = type.SubTypes.FirstOrDefault(st => st.SubTypeName.Contains(receivedMaterialNumber));
+                if (foundMaterial != null) break;
+            }
+
+            if (foundMaterial == null)
+            {
+                AppendMessage($"[错误] 配置中未找到物料 '{receivedMaterialNumber}'。");
+                return new MessageRoutingInfo { IsFound = false };
+            }
+
+            string machineName = foundMaterial.AssociatedMachineName;
+            var machine = _config.AllMachines?.FirstOrDefault(m => m.EquipmentId.Equals(machineName, StringComparison.OrdinalIgnoreCase));
+
+            if (machine == null)
+            {
+                AppendMessage($"[错误] 物料 '{receivedMaterialNumber}' 关联的设备 '{machineName}' 不存在。");
+                return new MessageRoutingInfo { IsFound = false };
+            }
+
+            AppendMessage($"匹配成功! 目标设备: {machine.EquipmentId} ({machine.ServerIp}:{machine.ServerPort})。");
+
+            // 成功！返回包含所有信息的对象。
+            return new MessageRoutingInfo
+            {
+                IsFound = true,
+                TargetIp = machine.ServerIp,
+                TargetPort = machine.ServerPort,
+                MessageToSend = foundMaterial.SubTypeName,
+                AssociatedMachineName = machine.EquipmentId
+            };
+        }
+
+
     }
 }
 

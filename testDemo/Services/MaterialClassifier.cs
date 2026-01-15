@@ -25,7 +25,7 @@ namespace GHPHandShake.Services
             {
                 foreach (var sub in type.SubTypes)
                 {
-                    if (!string.IsNullOrEmpty(sub.Name) && input.Contains(sub.Name))
+                    if (!string.IsNullOrEmpty(sub.SubTypeName) && input.Contains(sub.SubTypeName))
                     {
                         return type.TypeName;
                     }

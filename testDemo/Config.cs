@@ -1,5 +1,6 @@
 ﻿using GHPHandShake.Models;
 using Newtonsoft.Json;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 
@@ -13,7 +14,8 @@ namespace GHPHandShake
         public string DeviceName { get; set; } = "HGW_AG010_LOAD";
 
         private static readonly string ConfigFilePath = "config.json";
-
+        // Add this new property to hold all the machines
+        public ObservableCollection<MachineInfo> AllMachines { get; set; }
         //save to config.json
         public void Save()
         {

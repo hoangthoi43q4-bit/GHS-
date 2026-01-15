@@ -1,0 +1,40 @@
+﻿<Window x:Class="GHPHandShake.ReleaseInfoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:GHPHandShake"
+        mc:Ignorable="d"
+        Title="ReleaseInfo" Height="400" Width="500">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="4*"/>
+            <RowDefinition Height="auto" />
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <TextBlock Text="{Binding ReleaseNotes}" TextWrapping="Wrap" FontSize="14"/>
+        </ScrollViewer>
+        
+        <Separator Grid.Row="1" VerticalAlignment="Center"/>
+        
+        <TextBlock Grid.Row="2" 
+                   Text="{Binding VersionString}" 
+                   FontSize="14" 
+                   FontWeight="SemiBold"
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center"/>
+
+        <Separator Grid.Row="3" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="4" 
+                   Text="{Binding ReleaseDate}" 
+                   FontSize="12" 
+                   Foreground="Gray"
+                   HorizontalAlignment="Right" 
+                   VerticalAlignment="Center"/>
+
+    </Grid>
+</Window>
