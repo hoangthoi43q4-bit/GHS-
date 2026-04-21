@@ -12,6 +12,7 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 
@@ -33,6 +34,8 @@ namespace GHPHandShake
             public string TargetIp { get; set; }
             public int TargetPort { get; set; }
             public string MessageToSend { get; set; } // 这是物料的 SubTypeName
+
+            public string TypeName { get; set; } //新增：Excel 中的位置/类型 (1, 2, 3...)
             public string AssociatedMachineName { get; set; } // 这是找到的设备的 EquipmentId
         }
 
@@ -46,8 +49,11 @@ namespace GHPHandShake
             AppendMessage($"加载配置: IP={_config.ServerIP}, 端口={_config.ServerPort},站位 ={_config.DeviceName}");
             //加载material配置文件
             LoadMaterialConfig();
+            //初始化完成后刷新一次项目列表
+            this.Loaded += (s, e) => RefreshProjects();
 
         }
+
 
         //读区 material config
         public void LoadMaterialConfig()
@@ -73,6 +79,47 @@ namespace GHPHandShake
                 InputTextBox.Clear();
             }
         }
+
+        // ==========================================
+        // 【新增】：根据导入的数据刷新项目选择下拉框
+        // ==========================================
+        private void RefreshProjects()
+        {
+            if (materialSettingControl?.MaterialTypesList == null) return;
+
+            // 提取所有不重复的项目名称 (Excel 第四列)
+            var projectList = materialSettingControl.MaterialTypesList
+                .Select(t => t.ProjectName)
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Distinct()
+                .OrderBy(p => p)
+                .Select(p => new { Name = p })
+                .ToList();
+
+            ProjectSelector.ItemsSource = projectList;
+            if (projectList.Count > 0)
+            {
+                ProjectSelector.SelectedIndex = 0;
+                AppendMessage($"项目列表更新: 发现 {projectList.Count} 个项目。");
+            }
+        }
+
+        // 点击刷新按钮时调用
+        private void RefreshProjectsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshProjects();
+        }
+
+        private void ProjectSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            dynamic selected = ProjectSelector.SelectedItem;
+            if (selected != null)
+            {
+                AppendMessage($"[切换项目] 当前锁定为: {selected.Name}");
+            }
+        }
+
+        
 
         // 点击发送按钮
         private void SendButton_Click(object sender, RoutedEventArgs e)
@@ -118,6 +165,9 @@ namespace GHPHandShake
                 _config.Save();
 
                 AppendMessage($"设置已更新: IP={_config.ServerIP}, 端口={_config.ServerPort}, 站位={_config.DeviceName}");
+
+                // 设置变更后，更新物料控件的设备关联
+                materialSettingControl.SetAvailableMachines(_config.AllMachines);
             }
         }
 
@@ -126,6 +176,9 @@ namespace GHPHandShake
         {
             var MaterialSettingsWindow = new MaterialSettingWindow();
             MaterialSettingsWindow.ShowDialog();
+            // 窗体关闭后重新加载配置并刷新项目
+            LoadMaterialConfig();
+            RefreshProjects();
         }
 
         // 发送消息逻辑
@@ -142,8 +195,20 @@ namespace GHPHandShake
                 return;
             }
 
+            // 获取当前选中的项目
+            dynamic selectedItem = ProjectSelector.SelectedItem;
+            string currentProject = selectedItem?.Name;
+
+            if (string.IsNullOrEmpty(currentProject))
+            {
+                MessageBox.Show("请先选择当前运行的项目！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            //传入当前选中的项目名进行精准查找
+            MessageRoutingInfo routingInfo = FindRoutingForMaterial(Matlabel, currentProject);
+
             // 步骤 1: 根据输入的物料号查找其路由信息（目标IP、端口等）。
-            
+
 
             if (string.IsNullOrEmpty(Matlabel))
             {
@@ -151,7 +216,7 @@ namespace GHPHandShake
                 return;
             }
 
-            MessageRoutingInfo routingInfo = FindRoutingForMaterial(Matlabel);
+            
 
             // 步骤 2: 如果在配置中找不到该物料，则停止执行。
             if (!routingInfo.IsFound)
@@ -223,48 +288,73 @@ namespace GHPHandShake
         /// </summary>
         /// <param name="receivedMaterialNumber">要查找的物料号</param>
         /// <returns>一个 MessageRoutingInfo 对象</returns>
-        public MessageRoutingInfo FindRoutingForMaterial(string receivedMaterialNumber)
+        public MessageRoutingInfo FindRoutingForMaterial(string receivedMaterialNumber , string projectName)
         {
-            AppendMessage($"接收到物料号: {receivedMaterialNumber}。正在查找...");
+            // 记录查找起始日志
+            AppendMessage($"[检索] 项目: {projectName} | 目标料号: {receivedMaterialNumber}");
 
             var materialTypes = materialSettingControl.MaterialTypesList;
-            if (materialTypes == null)
+            if (materialTypes == null || materialTypes.Count == 0)
             {
-                AppendMessage("[错误] 物料配置未加载。");
+                AppendMessage("[错误] 物料配置列表为空，请先在设置中导入数据。");
                 return new MessageRoutingInfo { IsFound = false };
             }
 
-            MaterialSubType foundMaterial = null;
-            foreach (var type in materialTypes)
-            {
-                foundMaterial = type.SubTypes.FirstOrDefault(st => st.SubTypeName.Contains(receivedMaterialNumber));
-                if (foundMaterial != null) break;
-            }
+            // 1. 【高亮修改】：首先根据项目名称过滤出所有属于该项目的配置块
+            var projectFilteredBlocks = materialTypes
+                .Where(t => t.ProjectName == projectName)
+                .ToList();
 
-            if (foundMaterial == null)
+            if (projectFilteredBlocks.Count == 0)
             {
-                AppendMessage($"[错误] 配置中未找到物料 '{receivedMaterialNumber}'。");
+                AppendMessage($"[错误] 未找到项目 '{projectName}' 对应的配置数据。");
                 return new MessageRoutingInfo { IsFound = false };
             }
 
-            string machineName = foundMaterial.AssociatedMachineName;
-            var machine = _config.AllMachines?.FirstOrDefault(m => m.EquipmentId.Equals(machineName, StringComparison.OrdinalIgnoreCase));
+            MaterialType targetTypeBlock = null;
+            MaterialSubType targetSubType = null;
+
+            // 2. 【高亮修改】：仅在属于该项目的块中查找物料号
+            foreach (var block in projectFilteredBlocks)
+            {
+                // 使用 Exact Match 或 Contains 视业务而定，此处建议 Equals 以防混淆
+                targetSubType = block.SubTypes.FirstOrDefault(st =>
+                    st.SubTypeName.Equals(receivedMaterialNumber, StringComparison.OrdinalIgnoreCase));
+
+                if (targetSubType != null)
+                {
+                    targetTypeBlock = block;
+                    break; // 找到即止，因为已经限定了项目
+                }
+            }
+
+            // 3. 结果验证与机器匹配
+            if (targetSubType == null)
+            {
+                AppendMessage($"[错误] 在项目 '{projectName}' 中未找到料号 '{receivedMaterialNumber}'。");
+                return new MessageRoutingInfo { IsFound = false };
+            }
+
+            string machineName = targetSubType.AssociatedMachineName;
+            var machine = _config.AllMachines?.FirstOrDefault(m =>
+                m.EquipmentId.Equals(machineName, StringComparison.OrdinalIgnoreCase));
 
             if (machine == null)
             {
-                AppendMessage($"[错误] 物料 '{receivedMaterialNumber}' 关联的设备 '{machineName}' 不存在。");
+                AppendMessage($"[错误] 匹配到位置 {targetTypeBlock.TypeName}，但关联设备 '{machineName}' 未定义。");
                 return new MessageRoutingInfo { IsFound = false };
             }
 
-            AppendMessage($"匹配成功! 目标设备: {machine.EquipmentId} ({machine.ServerIp}:{machine.ServerPort})。");
+            // 4. 返回查找到的路由信息
+            AppendMessage($"[命中] 项目:{projectName} | 位置:{targetTypeBlock.TypeName} | 设备:{machine.EquipmentId}");
 
-            // 成功！返回包含所有信息的对象。
             return new MessageRoutingInfo
             {
                 IsFound = true,
                 TargetIp = machine.ServerIp,
                 TargetPort = machine.ServerPort,
-                MessageToSend = foundMaterial.SubTypeName,
+                MessageToSend = targetSubType.SubTypeName,
+                TypeName = targetTypeBlock.TypeName, // 这里的 TypeName 就是 Excel 第一列的位置
                 AssociatedMachineName = machine.EquipmentId
             };
         }

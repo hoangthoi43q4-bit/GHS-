@@ -9,6 +9,7 @@ namespace GHPHandShake.Models
 {
     public class MaterialType
     {
+        public string ProjectName { get; set; }
         public string TypeName { get; set; }
         //public List<MaterialSubType> SubTypes { get; set; } = new List<MaterialSubType>();
 

@@ -64,22 +64,21 @@ namespace GHPHandShake.Views
                             string typeName = row.Cell(1).GetValue<string>().Trim();
                             string subTypeName = row.Cell(2).GetValue<string>().Trim();
                             string machineName = row.Cell(3).GetValue<string>().Trim();
+                            string projectName = row.Cell(4).GetValue<string>().Trim();
 
-                            if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(subTypeName)) continue;
+                            if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(subTypeName) || string.IsNullOrEmpty(projectName)) continue;
 
-                            var targetType = MaterialTypesList.FirstOrDefault(t => t.TypeName == typeName);
+                            var targetType = MaterialTypesList.FirstOrDefault(t =>
+                                t.ProjectName == projectName && t.TypeName == typeName);
+
                             if (targetType == null)
                             {
-                                if (MaterialTypesList.Count >= 20) continue;
-                                targetType = new MaterialType { TypeName = typeName };
+                                targetType = new MaterialType { ProjectName = projectName, TypeName = typeName };
                                 MaterialTypesList.Add(targetType);
                             }
 
                             if (!targetType.SubTypes.Any(st => st.SubTypeName.Equals(subTypeName, StringComparison.OrdinalIgnoreCase)))
                             {
-                                // ==========================================
-                                // 【修改点】：删除了 targetType.SubTypes.Count < 10 的限制判断
-                                // ==========================================
                                 targetType.SubTypes.Add(new MaterialSubType
                                 {
                                     SubTypeName = subTypeName,
@@ -87,6 +86,8 @@ namespace GHPHandShake.Views
                                 });
                                 importCount++;
                             }
+
+
                         }
                         MessageBox.Show($"成功导入 {importCount} 条新纪录！", "导入完成", MessageBoxButton.OK, MessageBoxImage.Information);
                         SaveConfig();
@@ -144,7 +145,7 @@ namespace GHPHandShake.Views
                 return;
             }
 
-            MaterialTypesList.Add(new MaterialType { TypeName = name });
+            MaterialTypesList.Add(new MaterialType { TypeName = name, ProjectName = "未分类项目" });
             TypeNameBox.Clear();
             SaveConfig();
         }
