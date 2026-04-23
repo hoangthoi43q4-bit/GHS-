@@ -18,18 +18,19 @@ namespace GHPHandShake.Views
         private const string ConfigPath = "materials.json";
         Config config;
 
-        public ObservableCollection<MaterialType> MaterialTypesList { get; set; }
-
+        // 修改为项目列表作为根节点
+        public ObservableCollection<ProjectInfo> ProjectsList { get; set; }
 
         public MaterialSettingControl()
         {
             InitializeComponent();
             LoadConfig();
+
             // 加载IP配置文件
             config = Config.Load();
 
-            MaterialTreeView.ItemsSource = MaterialTypesList;
-            ParentTypeComboBox.ItemsSource = MaterialTypesList;
+            MaterialTreeView.ItemsSource = ProjectsList;
+            ProjectComboBox.ItemsSource = ProjectsList;
             MachineComboBox.ItemsSource = config.AllMachines;
         }
 
@@ -38,131 +39,107 @@ namespace GHPHandShake.Views
             MachineComboBox.ItemsSource = machines;
         }
 
-        public ObservableCollection<MaterialType> GetMaterialData()
+        // 保持此方法名，返回当前所有项目数据
+        public ObservableCollection<ProjectInfo> GetMaterialData()
         {
-            return MaterialTypesList;
+            return ProjectsList;
         }
 
-        //导入excel 逻辑
-        private void ImportExcel_Click(object sender,RoutedEventArgs e)
-        {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "Excel Files|*.xlsx;*.xlsm;*.xlsb;*.xltx;*.xltm";
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                try
-                {
-                    using(var workbook = new XLWorkbook(openFileDialog.FileName))
-                    {
-                        var worksheet = workbook.Worksheet(1);
-                        var rows = worksheet.RangeUsed().RowsUsed().Skip(1);
-
-                        int importCount = 0;
-                        foreach (var row in rows)
-                        {
-                            string typeName = row.Cell(1).GetValue<string>().Trim();
-                            string subTypeName = row.Cell(2).GetValue<string>().Trim();
-                            string machineName = row.Cell(3).GetValue<string>().Trim();
-                            string projectName = row.Cell(4).GetValue<string>().Trim();
-
-                            if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(subTypeName) || string.IsNullOrEmpty(projectName)) continue;
-
-                            var targetType = MaterialTypesList.FirstOrDefault(t =>
-                                t.ProjectName == projectName && t.TypeName == typeName);
-
-                            if (targetType == null)
-                            {
-                                targetType = new MaterialType { ProjectName = projectName, TypeName = typeName };
-                                MaterialTypesList.Add(targetType);
-                            }
-
-                            if (!targetType.SubTypes.Any(st => st.SubTypeName.Equals(subTypeName, StringComparison.OrdinalIgnoreCase)))
-                            {
-                                targetType.SubTypes.Add(new MaterialSubType
-                                {
-                                    SubTypeName = subTypeName,
-                                    AssociatedMachineName = machineName
-                                });
-                                importCount++;
-                            }
-
-
-                        }
-                        MessageBox.Show($"成功导入 {importCount} 条新纪录！", "导入完成", MessageBoxButton.OK, MessageBoxImage.Information);
-                        SaveConfig();
-
-                        ParentTypeComboBox.ItemsSource = null;
-                        ParentTypeComboBox.ItemsSource = MaterialTypesList;
-                    }
-                }
-                catch (Exception)
-                {
-
-                    throw;
-                }
-            }
-        }
+        #region 数据加载与保存
 
         private void LoadConfig()
         {
             if (File.Exists(ConfigPath))
             {
                 string json = File.ReadAllText(ConfigPath);
-                var config = JsonConvert.DeserializeObject<MaterialConfig>(json);
-                MaterialTypesList = config?.MaterialTypes ?? new ObservableCollection<MaterialType>();
+                var configData = JsonConvert.DeserializeObject<MaterialConfig>(json);
+                // 适配新模型：根级是 Projects
+                ProjectsList = configData?.Projects ?? new ObservableCollection<ProjectInfo>();
             }
             else
             {
-                MaterialTypesList = new ObservableCollection<MaterialType>();
+                ProjectsList = new ObservableCollection<ProjectInfo>();
             }
         }
 
         public void SaveConfig()
         {
-            var config = new MaterialConfig { MaterialTypes = this.MaterialTypesList };
-            string json = JsonConvert.SerializeObject(config, Newtonsoft.Json.Formatting.Indented);
+            var configData = new MaterialConfig { Projects = this.ProjectsList };
+            string json = JsonConvert.SerializeObject(configData, Newtonsoft.Json.Formatting.Indented);
             File.WriteAllText(ConfigPath, json);
         }
 
-        private void AddType_Click(object sender, RoutedEventArgs e)
+        #endregion
+
+        #region 操作逻辑
+
+        // 新增：添加项目逻辑
+        private void AddProject_Click(object sender, RoutedEventArgs e)
         {
-            string name = TypeNameBox.Text.Trim();
-
-            if (string.IsNullOrWhiteSpace(name) || !int.TryParse(name, out _))
+            string name = ProjectNameBox.Text.Trim();
+            if (string.IsNullOrEmpty(name) || ProjectsList.Any(p => p.ProjectName == name))
             {
-                MessageBox.Show("物料类型必须是数字");
-                return;
-            }
-            if (MaterialTypesList.Count >= 20)
-            {
-                MessageBox.Show("最多只能添加 20 个物料类型");
-                return;
-            }
-            if (MaterialTypesList.Any(t => t.TypeName.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            {
-                MessageBox.Show("该类型已存在。");
+                MessageBox.Show("项目名不能为空且不能重复");
                 return;
             }
 
-            MaterialTypesList.Add(new MaterialType { TypeName = name, ProjectName = "未分类项目" });
-            TypeNameBox.Clear();
+            ProjectsList.Add(new ProjectInfo { ProjectName = name });
+            ProjectNameBox.Clear();
             SaveConfig();
         }
 
+        // 项目选择变更时，更新位置(Position)下拉框的数据源
+        private void ProjectComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var project = ProjectComboBox.SelectedItem as ProjectInfo;
+            // 对应 XAML 中的 SubTypeParentBox
+            SubTypeParentBox.ItemsSource = project?.MaterialTypes;
+        }
+
+        // 修改：添加类型(Position)逻辑
+        private void AddType_Click(object sender, RoutedEventArgs e)
+        {
+            var project = ProjectComboBox.SelectedItem as ProjectInfo;
+            string typeName = TypeNameBox.Text.Trim(); // 保持使用 TypeNameBox
+
+            if (project == null)
+            {
+                MessageBox.Show("请先选择一个所属项目");
+                return;
+            }
+            if (string.IsNullOrEmpty(typeName))
+            {
+                MessageBox.Show("位置名称不能为空");
+                return;
+            }
+
+            if (!project.MaterialTypes.Any(t => t.TypeName.Equals(typeName, StringComparison.OrdinalIgnoreCase)))
+            {
+                project.MaterialTypes.Add(new MaterialType { TypeName = typeName });
+                TypeNameBox.Clear();
+                SaveConfig();
+            }
+            else
+            {
+                MessageBox.Show("该位置已存在");
+            }
+        }
+
+        // 修改：添加子类(物料号)逻辑
         private void AddSubType_Click(object sender, RoutedEventArgs e)
         {
-            var parentType = ParentTypeComboBox.SelectedItem as MaterialType;
+            // 对应 XAML 中的 SubTypeParentBox
+            var parentType = SubTypeParentBox.SelectedItem as MaterialType;
             var selectedMachine = MachineComboBox.SelectedItem as MachineInfo;
             string subTypeName = SubTypeNameBox.Text.Trim();
 
-            if (parentType == null) { MessageBox.Show("请选择一个所属类型。"); return; }
+            if (parentType == null) { MessageBox.Show("请选择一个所属类型(位置)。"); return; }
             if (string.IsNullOrEmpty(subTypeName)) { MessageBox.Show("子类名（物料号）不能为空。"); return; }
             if (selectedMachine == null) { MessageBox.Show("请为该物料选择一个关联设备。"); return; }
-            if (parentType.SubTypes.Count >= 50) { MessageBox.Show("每种类型最多 50 个子类"); return; }
+
             if (parentType.SubTypes.Any(st => st.SubTypeName.Equals(subTypeName, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show($"类型 '{parentType.TypeName}' 下已存在名为 '{subTypeName}' 的子类。");
+                MessageBox.Show($"位置 '{parentType.TypeName}' 下已存在名为 '{subTypeName}' 的物料。");
                 return;
             }
 
@@ -177,6 +154,69 @@ namespace GHPHandShake.Views
             SaveConfig();
         }
 
+        // 导入excel 逻辑 (支持4列：位置, 料号, 设备, 项目)
+        private void ImportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Excel Files|*.xlsx;*.xlsm;*.xlsb;*.xltx;*.xltm";
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    using (var workbook = new XLWorkbook(openFileDialog.FileName))
+                    {
+                        var worksheet = workbook.Worksheet(1);
+                        var rows = worksheet.RangeUsed().RowsUsed().Skip(1);
+
+                        int importCount = 0;
+                        foreach (var row in rows)
+                        {
+                            string posName = row.Cell(1).GetValue<string>().Trim();
+                            string subName = row.Cell(2).GetValue<string>().Trim();
+                            string macName = row.Cell(3).GetValue<string>().Trim();
+                            string proName = row.Cell(4).GetValue<string>().Trim(); // 第四列：项目名称
+
+                            if (string.IsNullOrEmpty(posName) || string.IsNullOrEmpty(subName) || string.IsNullOrEmpty(proName)) continue;
+
+                            // 1. 查找或创建项目
+                            var targetProject = ProjectsList.FirstOrDefault(p => p.ProjectName == proName);
+                            if (targetProject == null)
+                            {
+                                targetProject = new ProjectInfo { ProjectName = proName };
+                                ProjectsList.Add(targetProject);
+                            }
+
+                            // 2. 查找或创建位置 (MaterialType)
+                            var targetType = targetProject.MaterialTypes.FirstOrDefault(t => t.TypeName == posName);
+                            if (targetType == null)
+                            {
+                                targetType = new MaterialType { TypeName = posName };
+                                targetProject.MaterialTypes.Add(targetType);
+                            }
+
+                            // 3. 添加物料号 (查重)
+                            if (!targetType.SubTypes.Any(st => st.SubTypeName.Equals(subName, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                targetType.SubTypes.Add(new MaterialSubType
+                                {
+                                    SubTypeName = subName,
+                                    AssociatedMachineName = macName
+                                });
+                                importCount++;
+                            }
+                        }
+                        MessageBox.Show($"成功导入 {importCount} 条新纪录！", "导入完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                        SaveConfig();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("导入失败: " + ex.Message);
+                }
+            }
+        }
+
         private void DeleteItem_Click(object sender, RoutedEventArgs e)
         {
             var selectedItem = MaterialTreeView.SelectedItem;
@@ -185,20 +225,41 @@ namespace GHPHandShake.Views
 
             if (selectedItem is MaterialSubType subType)
             {
-                foreach (var type in MaterialTypesList)
+                // 三级删除：遍历项目 -> 遍历类型 -> 移除物料
+                foreach (var project in ProjectsList)
                 {
-                    if (type.SubTypes.Contains(subType))
+                    foreach (var type in project.MaterialTypes)
                     {
-                        type.SubTypes.Remove(subType);
-                        break;
+                        if (type.SubTypes.Contains(subType))
+                        {
+                            type.SubTypes.Remove(subType);
+                            goto EndDelete;
+                        }
                     }
                 }
             }
             else if (selectedItem is MaterialType type)
             {
-                MaterialTypesList.Remove(type);
+                // 二级删除：遍历项目 -> 移除类型
+                foreach (var project in ProjectsList)
+                {
+                    if (project.MaterialTypes.Contains(type))
+                    {
+                        project.MaterialTypes.Remove(type);
+                        goto EndDelete;
+                    }
+                }
             }
+            else if (selectedItem is ProjectInfo project)
+            {
+                // 一级删除：直接移除项目
+                ProjectsList.Remove(project);
+            }
+
+        EndDelete:
             SaveConfig();
         }
+
+        #endregion
     }
 }

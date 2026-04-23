@@ -49,8 +49,8 @@ namespace GHPHandShake
             AppendMessage($"加载配置: IP={_config.ServerIP}, 端口={_config.ServerPort},站位 ={_config.DeviceName}");
             //加载material配置文件
             LoadMaterialConfig();
-            //初始化完成后刷新一次项目列表
-            this.Loaded += (s, e) => RefreshProjects();
+            
+           
 
         }
 
@@ -83,42 +83,9 @@ namespace GHPHandShake
         // ==========================================
         // 【新增】：根据导入的数据刷新项目选择下拉框
         // ==========================================
-        private void RefreshProjects()
-        {
-            if (materialSettingControl?.MaterialTypesList == null) return;
+       
 
-            // 提取所有不重复的项目名称 (Excel 第四列)
-            var projectList = materialSettingControl.MaterialTypesList
-                .Select(t => t.ProjectName)
-                .Where(p => !string.IsNullOrEmpty(p))
-                .Distinct()
-                .OrderBy(p => p)
-                .Select(p => new { Name = p })
-                .ToList();
-
-            ProjectSelector.ItemsSource = projectList;
-            if (projectList.Count > 0)
-            {
-                ProjectSelector.SelectedIndex = 0;
-                AppendMessage($"项目列表更新: 发现 {projectList.Count} 个项目。");
-            }
-        }
-
-        // 点击刷新按钮时调用
-        private void RefreshProjectsBtn_Click(object sender, RoutedEventArgs e)
-        {
-            RefreshProjects();
-        }
-
-        private void ProjectSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            dynamic selected = ProjectSelector.SelectedItem;
-            if (selected != null)
-            {
-                AppendMessage($"[切换项目] 当前锁定为: {selected.Name}");
-            }
-        }
-
+       
         
 
         // 点击发送按钮
@@ -178,7 +145,7 @@ namespace GHPHandShake
             MaterialSettingsWindow.ShowDialog();
             // 窗体关闭后重新加载配置并刷新项目
             LoadMaterialConfig();
-            RefreshProjects();
+            
         }
 
         // 发送消息逻辑

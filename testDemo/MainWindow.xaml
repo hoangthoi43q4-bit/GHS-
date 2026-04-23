@@ -32,11 +32,7 @@
                     Margin="10" 
                     HorizontalAlignment="Right">
             
-            <StackPanel Orientation="Horizontal" Margin="0,5">
-                <TextBlock Text="当前项目：" VerticalAlignment="Center"/>
-                <ComboBox x:Name="ProjectSelector" Width="200" DisplayMemberPath="ProjectName" 
-              SelectionChanged="ProjectSelector_SelectionChanged"/>
-            </StackPanel>
+            
 
             <Button Content="物料配置" 
                     Padding="10" 

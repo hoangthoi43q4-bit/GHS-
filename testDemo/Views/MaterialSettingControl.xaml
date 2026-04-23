@@ -1,70 +1,97 @@
-﻿<UserControl  x:Class="GHPHandShake.Views.MaterialSettingControl"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="clr-namespace:GHPHandShake.Models"
-        Height="auto" Width="600">
+﻿<UserControl x:Class="GHPHandShake.Views.MaterialSettingControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:GHPHandShake.Models"
+             Height="auto" Width="600">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- 项目管理 -->
             <RowDefinition Height="Auto"/>
+            <!-- 类型/物料添加 -->
             <RowDefinition Height="*"/>
-            <RowDefinition Height="auto"/>
+            <!-- 树状列表 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 删除 -->
         </Grid.RowDefinitions>
 
-        <!-- 添加主类型区域 -->
-        <GroupBox Header="添加主类型/外部导入" Grid.Row="0" Padding="5">
+        <!-- 1. 项目管理区域 (最上层) -->
+        <GroupBox Header="项目信息管理" Grid.Row="0" Padding="5">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="物料类型名：" VerticalAlignment="Center"/>
-                <TextBox x:Name="TypeNameBox" Width="200" Margin="5,0"/>
-                <Button Content="添加类型" Click="AddType_Click" Width="80"/>
-
-                <!--新增：excel 导入按钮 -->
+                <TextBlock Text="新项目名称：" VerticalAlignment="Center"/>
+                <!-- 新增 ProjectNameBox 用于添加项目 -->
+                <TextBox x:Name="ProjectNameBox" Width="150" Margin="5,0"/>
+                <Button Content="添加项目" Click="AddProject_Click" Width="70"/>
                 <Button Content="从 Excel 导入" Click="ImportExcel_Click" Width="100" Margin="20,0,0,0" Background="#E1F5FE"/>
             </StackPanel>
         </GroupBox>
 
-        
-        <GroupBox Header="添加子类型 (Position)" Grid.Row="1" Margin="0,10,0,0" Padding="5">
+        <!-- 2. 层级添加区域 (Position & Material) -->
+        <GroupBox Header="配置明细 (位置与物料)" Grid.Row="1" Margin="0,10,0,0" Padding="5">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="auto"/>
-                    <RowDefinition Height="auto"/>
-                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="auto"/>
-                    <ColumnDefinition Width="auto"/>
-                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="所属类型：" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                <ComboBox x:Name="ParentTypeComboBox" Grid.Row="0" Grid.Column="1" DisplayMemberPath="TypeName"/>
 
-                <TextBlock Text="子类名 (物料号)：" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,5,5,0"/>
-                <TextBox x:Name="SubTypeNameBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,5,0,0"/>
+                <!-- 选择所属项目 -->
+                <TextBlock Text="目标项目：" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox x:Name="ProjectComboBox" Grid.Column="1" DisplayMemberPath="ProjectName" SelectionChanged="ProjectComboBox_SelectionChanged"/>
 
-                <TextBlock Text="关联设备：" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,5,5,0"/>
-                <ComboBox x:Name="MachineComboBox" Grid.Row="2" Grid.Column="1" Margin="0,5,0,0"
-          DisplayMemberPath="EquipmentId"/>
+                <!-- 位置 (Position/Type) 添加 - 恢复使用 TypeNameBox -->
+                <TextBlock Text="位置(Type)：" Grid.Row="1" VerticalAlignment="Center" Margin="0,5,5,0"/>
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,5,0,0">
+                    <!-- 使用 SubTypeParentBox 作为所属位置的选择器 (保持变量名) -->
+                    <ComboBox x:Name="SubTypeParentBox" Width="120" DisplayMemberPath="TypeName" ToolTip="选择已有的位置"/>
+                    <TextBlock Text=" 或新位置:" VerticalAlignment="Center" Margin="5,0"/>
+                    <TextBox x:Name="TypeNameBox" Width="80" ToolTip="输入新位置名称"/>
+                    <Button Content="新增位置" Click="AddType_Click" Width="60" Margin="5,0,0,0"/>
+                </StackPanel>
 
-                <Button Content="添加子类" Grid.Row="2" Grid.Column="3" Click="AddSubType_Click" Margin="10,5,0,0" Width="100"/>
+                <!-- 物料号添加 - 保持 SubTypeNameBox -->
+                <TextBlock Text="物料号：" Grid.Row="2" VerticalAlignment="Center" Margin="0,5,5,0"/>
+                <TextBox x:Name="SubTypeNameBox" Grid.Row="2" Grid.Column="1" Margin="0,5,0,0"/>
+
+                <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" Margin="10,5,0,0">
+                    <ComboBox x:Name="MachineComboBox" Width="100" DisplayMemberPath="EquipmentId"/>
+                    <Button Content="添加物料" Click="AddSubType_Click" Margin="5,0,0,0" Width="70"/>
+                </StackPanel>
             </Grid>
-            
         </GroupBox>
 
+        <!-- 3. 三层级树状显示: 项目 -> 类型(Position) -> 物料(含关联设备) -->
         <TreeView x:Name="MaterialTreeView" Grid.Row="2" Margin="0,10">
             <TreeView.Resources>
-                <DataTemplate  DataType="{x:Type local:MaterialSubType}">
+                <!-- 第三层：物料号与关联设备 -->
+                <DataTemplate DataType="{x:Type local:MaterialSubType}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="物料: "/>
+                        <TextBlock Text="物料: " Foreground="Gray"/>
                         <TextBlock Text="{Binding SubTypeName}" FontWeight="SemiBold"/>
-                        <TextBlock Text=" -> 关联设备: " Margin="15,0,0,0"/>
+                        <TextBlock Text=" -> 设备: " Margin="10,0,0,0" Foreground="Gray"/>
                         <TextBlock Text="{Binding AssociatedMachineName}" Foreground="Blue"/>
                     </StackPanel>
                 </DataTemplate>
 
-                <HierarchicalDataTemplate DataType="{x:Type local:MaterialType}" 
-                                  ItemsSource="{Binding SubTypes}">
-                    <TextBlock Text="{Binding TypeName}" FontWeight="Bold" FontSize="14"/>
+                <!-- 第二层：位置 (Position/Type) -->
+                <HierarchicalDataTemplate DataType="{x:Type local:MaterialType}" ItemsSource="{Binding SubTypes}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="位置: " Foreground="#666"/>
+                        <TextBlock Text="{Binding TypeName}" FontWeight="Bold"/>
+                    </StackPanel>
+                </HierarchicalDataTemplate>
+
+                <!-- 第一层 (最上层)：项目信息 -->
+                <HierarchicalDataTemplate DataType="{x:Type local:ProjectInfo}" ItemsSource="{Binding MaterialTypes}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="项目: " Foreground="#333"/>
+                        <TextBlock Text="{Binding ProjectName}" FontWeight="ExtraBold" Foreground="#2E7D32" FontSize="15"/>
+                    </StackPanel>
                 </HierarchicalDataTemplate>
             </TreeView.Resources>
         </TreeView>
