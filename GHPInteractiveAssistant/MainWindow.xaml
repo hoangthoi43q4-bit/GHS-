@@ -1,0 +1,15 @@
+﻿<Window x:Class="GHPInteractiveAssistant.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:GHPInteractiveAssistant"
+        mc:Ignorable="d"
+        Title="GHP Interactive Assistant" Height="450" Width="800">
+    <Grid>
+        <TextBox x:Name="SendMessage" HorizontalAlignment="Left" Margin="181,141,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="288" Height="32"/>
+        <Label x:Name="ResponesLabel" Content="Label" HorizontalAlignment="Left" Height="64" Margin="181,240,0,0" VerticalAlignment="Top" Width="Auto" BorderBrush="Black" />
+        <Button Content="nihao " Height="200" Width="50" HorizontalAlignment="Left"/>
+        <Button Content="good "  Height="200" Width="50" HorizontalAlignment="Right"/>
+    </Grid>
+</Window>

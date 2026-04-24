@@ -1,0 +1,62 @@
+﻿<Window x:Class="GHPHandShake.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="设置目标 IP 和端口" Height="450" Width="600">
+    <Grid Margin="30">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <!-- machine information-->
+            <RowDefinition Height="auto" />
+            <!-- destination IP-->
+            <RowDefinition Height="Auto" />
+            <!-- port-->
+            <RowDefinition Height="Auto" />
+            <!-- button area -->
+            <RowDefinition Height="*" />
+            <!-- machine list-->
+            <RowDefinition Height="auto" />
+            <!-- save button -->
+
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- input text area -->
+        <TextBlock Text="目标IP: " Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,5,10,5"/>
+        <TextBlock Text="目标端口: " Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,5,10,5"/>
+        <TextBlock Text="站位信息: " Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,5,10,5"/>
+
+        <!-- input area -->
+        <TextBox  x:Name="IpTextBox" Grid.Row="0" Grid.Column="1"  Margin="0,5"/>
+        <TextBox x:Name="PortTextBox" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="0,5"/>
+        <TextBox x:Name="EquipmentTextBox" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Margin="0,5"/>
+
+        <!-- add and delete button area-->
+        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,10" >
+            <Button x:Name="AddButton" Content="添加" Width=" 80" Click="AddButton_Click"/>
+            <Button x:Name="DeleteButton" Content="删除" Width=" 80" Margin=" 10,0,0,0" Click="DeleteButton_Click"/>
+        </StackPanel>
+
+        <!-- machine information list-->
+        <GroupBox Header="已存设备列表" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,10">
+            <ListBox Name="MachineListBox" SelectionChanged="MachineListBox_SelectionChanged" >
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding EquipmentId}" FontWeight="Bold" Width="200"/>
+                            <TextBlock Text="{Binding ServerIp}" Width="150" Margin="10,0,0,0"/>
+                            <TextBlock Text="{Binding ServerPort}" Width="80" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </GroupBox>
+        <!-- save and close button-->
+        <Button x:Name="SaveButton" Content="保存并应用选择" Grid.Row="5" Grid.Column="1" HorizontalAlignment="Right" Width="120" Click="SaveButton_Click" />
+    </Grid>
+
+</Window>
+
