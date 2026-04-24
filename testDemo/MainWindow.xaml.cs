@@ -28,6 +28,7 @@ namespace GHPHandShake
             public string SubTypeName { get; set; }
             public string MachineName { get; set; }
             public string UploadStatus { get; set; } = "未上传";
+            public string UploadStatusColor { get; set; } = "#9CA3AF";
         }
 
         /// <summary>
@@ -366,7 +367,8 @@ namespace GHPHandShake
                         TypeName = type.TypeName,
                         SubTypeName = sub.SubTypeName,
                         MachineName = sub.AssociatedMachineName,
-                        UploadStatus = "未上传"
+                        UploadStatus = "未上传",
+                        UploadStatusColor = GetStatusColor("未上传")
                     });
                 }
             }
@@ -386,8 +388,31 @@ namespace GHPHandShake
             if (target != null)
             {
                 target.UploadStatus = status;
+                target.UploadStatusColor = GetStatusColor(status);
                 RefreshProjectMaterialGrid();
             }
+        }
+
+        private string GetStatusColor(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                return "#9CA3AF";
+            }
+
+            if (status.IndexOf("上传成功", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                string.Equals(status.Trim(), "ACK", StringComparison.OrdinalIgnoreCase))
+            {
+                return "#22C55E";
+            }
+
+            if (status.IndexOf("失败", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                status.IndexOf("未成功", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "#EF4444";
+            }
+
+            return "#9CA3AF";
         }
 
         private void RefreshProjectMaterialGrid()

@@ -116,6 +116,18 @@
                             </Style>
                         </DataGrid.ColumnHeaderStyle>
                         <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="状态灯" Width="68">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Ellipse Width="12" Height="12"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center"
+                                                     Fill="{Binding UploadStatusColor}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="类型" Binding="{Binding TypeName}" Width="*"/>
                             <DataGridTextColumn Header="子类型/物料" Binding="{Binding SubTypeName}" Width="1.4*"/>
                             <DataGridTextColumn Header="设备" Binding="{Binding MachineName}" Width="*"/>
