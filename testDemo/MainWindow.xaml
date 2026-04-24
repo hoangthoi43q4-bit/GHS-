@@ -2,6 +2,38 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="GHP HandShake Assistant" Height="680" Width="1080" Background="#F4F7FB">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#334155"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#FAFCFF"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#FAFCFF"/>
+        </Style>
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Margin" Value="6,0"/>
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="Background" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+        </Style>
+    </Window.Resources>
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -9,7 +41,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="10" BorderBrush="#D8DFEA" BorderThickness="1">
+        <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="12" BorderBrush="#D8DFEA" BorderThickness="1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="90"/>
@@ -17,13 +49,13 @@
                     <ColumnDefinition Width="130"/>
                     <ColumnDefinition Width="2*"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="发送Mat_Label：" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="发送Mat_Label：" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
                 <TextBox x:Name="InputTextBox"
                          Grid.Column="1"
                          Margin="0,0,8,0"
                          FontSize="14"
                          KeyDown="InputTextBox_KeyDown" />
-                <TextBlock Grid.Column="2" Text="当前项目：" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+                <TextBlock Grid.Column="2" Text="当前项目：" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0" FontWeight="SemiBold"/>
                 <ComboBox x:Name="ProjectComboBox"
                           Grid.Column="3"
                           VerticalAlignment="Center"
@@ -39,36 +71,50 @@
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="White" CornerRadius="8" BorderBrush="#D8DFEA" BorderThickness="1" Padding="8" Margin="0,0,8,0">
+            <Border Grid.Column="0" Background="White" CornerRadius="10" BorderBrush="#D8DFEA" BorderThickness="1" Padding="10" Margin="0,0,8,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="通信日志" FontWeight="SemiBold" Margin="4"/>
+                    <TextBlock Text="通信日志" FontWeight="SemiBold" Margin="4" FontSize="14"/>
                     <ListBox x:Name="MessageListBox"
                              Grid.Row="1"
                              Margin="4"
                              FontSize="13"
+                             BorderThickness="0"
                              Background="#F7F9FC" />
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Background="White" CornerRadius="8" BorderBrush="#D8DFEA" BorderThickness="1" Padding="8">
+            <Border Grid.Column="1" Background="White" CornerRadius="10" BorderBrush="#D8DFEA" BorderThickness="1" Padding="10">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="项目挂载物料与上传状态" FontWeight="SemiBold" Margin="4"/>
+                    <TextBlock Text="项目挂载物料与上传状态" FontWeight="SemiBold" Margin="4" FontSize="14"/>
                     <DataGrid x:Name="ProjectMaterialsGrid"
                               Grid.Row="1"
                               Margin="4"
                               AutoGenerateColumns="False"
+                              RowBackground="White"
+                              AlternatingRowBackground="#F8FAFC"
+                              BorderBrush="#E2E8F0"
                               IsReadOnly="True"
                               CanUserAddRows="False"
                               HeadersVisibility="Column"
                               GridLinesVisibility="Horizontal">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#EFF6FF"/>
+                                <Setter Property="Foreground" Value="#1E3A8A"/>
+                                <Setter Property="BorderBrush" Value="#DBEAFE"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Padding" Value="8,6"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="类型" Binding="{Binding TypeName}" Width="*"/>
                             <DataGridTextColumn Header="子类型/物料" Binding="{Binding SubTypeName}" Width="1.4*"/>
@@ -88,21 +134,18 @@
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0"
                     Content="Release Info"
-                    Padding="10,6"
+                    Style="{StaticResource SecondaryButtonStyle}"
                     Margin="0,0,6,0"
                     Click="ReleaseInfoButton_Click"/>
             <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="物料配置"
-                        Padding="10,6"
-                        Margin="6,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
                         Click="MaterialSettingsButton_Click" />
                 <Button Content="设置"
-                        Padding="10,6"
-                        Margin="6,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
                         Click="SettingsButton_Click" />
                 <Button Content="发送"
-                        Padding="12,6"
-                        Margin="6,0"
+                        Style="{StaticResource PrimaryButtonStyle}"
                         Click="SendButton_Click" />
             </StackPanel>
         </Grid>
