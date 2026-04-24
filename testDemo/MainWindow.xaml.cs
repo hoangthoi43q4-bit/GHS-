@@ -356,21 +356,24 @@ namespace GHPHandShake
                 return;
             }
 
-            foreach (var type in _materialConfig.MaterialTypes.Where(t =>
-                         string.Equals(t.ProjectName, selectedProject, StringComparison.OrdinalIgnoreCase)))
+            var orderedRows = _materialConfig.MaterialTypes
+                .Where(t => string.Equals(t.ProjectName, selectedProject, StringComparison.OrdinalIgnoreCase))
+                .SelectMany(type => type.SubTypes.Select(sub => new { Type = type, Sub = sub }))
+                .OrderBy(x => x.Sub.AssociatedMachineName)
+                .ThenBy(x => x.Type.TypeName)
+                .ThenBy(x => x.Sub.SubTypeName);
+
+            foreach (var row in orderedRows)
             {
-                foreach (var sub in type.SubTypes)
+                _projectMaterialStatuses.Add(new ProjectMaterialStatusItem
                 {
-                    _projectMaterialStatuses.Add(new ProjectMaterialStatusItem
-                    {
-                        ProjectName = selectedProject,
-                        TypeName = type.TypeName,
-                        SubTypeName = sub.SubTypeName,
-                        MachineName = sub.AssociatedMachineName,
-                        UploadStatus = "未上传",
-                        UploadStatusColor = GetStatusColor("未上传")
-                    });
-                }
+                    ProjectName = selectedProject,
+                    TypeName = row.Type.TypeName,
+                    SubTypeName = row.Sub.SubTypeName,
+                    MachineName = row.Sub.AssociatedMachineName,
+                    UploadStatus = "未上传",
+                    UploadStatusColor = GetStatusColor("未上传")
+                });
             }
         }
 

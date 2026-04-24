@@ -47,27 +47,24 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,6">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
                     <TextBlock Text="项目名：" VerticalAlignment="Center"/>
                     <TextBox x:Name="ProjectNameBox" Width="140" Margin="6,0,6,0"/>
                     <Button Content="添加项目" Click="AddProject_Click" Width="90" Style="{StaticResource SecondaryButtonStyle}"/>
                 </StackPanel>
 
-                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
+                <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
                     <TextBlock Text="所属项目：" VerticalAlignment="Center"/>
                     <ComboBox x:Name="TypeProjectComboBox" Width="140" Margin="6,0"/>
                     <TextBlock Text="类型名：" VerticalAlignment="Center"/>
-                    <TextBox x:Name="TypeNameBox" Width="120" Margin="6,0"/>
+                    <TextBox x:Name="TypeNameBox" Width="180" Margin="6,0"/>
                     <Button Content="添加类型" Click="AddType_Click" Width="90" Style="{StaticResource SecondaryButtonStyle}"/>
                 </StackPanel>
 
-                <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="从 Excel 导入" Click="ImportExcel_Click" Width="110" Style="{StaticResource PrimaryButtonStyle}"/>
                 </StackPanel>
             </Grid>
