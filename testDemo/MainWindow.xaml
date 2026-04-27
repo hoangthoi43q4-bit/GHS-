@@ -128,7 +128,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="类型" Binding="{Binding TypeName}" Width="*"/>
+                            <DataGridTextColumn Header="类型(Pos)" Binding="{Binding TypeName}" Width="*"/>
                             <DataGridTextColumn Header="子类型/物料" Binding="{Binding SubTypeName}" Width="1.4*"/>
                             <DataGridTextColumn Header="设备" Binding="{Binding MachineName}" Width="*"/>
                             <DataGridTextColumn Header="状态" Binding="{Binding UploadStatus}" Width="*"/>
