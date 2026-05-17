@@ -153,6 +153,9 @@
                 <Button Content="物料配置"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Click="MaterialSettingsButton_Click" />
+                <Button Content="历史物料信息"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Click="MaterialUploadHistoryButton_Click" />
                 <Button Content="设置"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Click="SettingsButton_Click" />

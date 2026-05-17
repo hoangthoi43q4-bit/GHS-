@@ -1,0 +1,52 @@
+<Window x:Class="GHPHandShake.Windows.MaterialUploadHistoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="历史物料信息" Height="560" Width="960" Background="#F4F7FB">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Background="White" CornerRadius="8" BorderBrush="#D8DFEA" BorderThickness="1" Padding="10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="筛选项目：" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                <ComboBox x:Name="ProjectFilterComboBox"
+                          Width="220"
+                          Margin="8,0,0,0"
+                          SelectionChanged="ProjectFilterComboBox_SelectionChanged"/>
+                <Button Content="刷新"
+                        Margin="12,0,0,0"
+                        Padding="12,6"
+                        Click="RefreshButton_Click"/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1"
+                Margin="0,10,0,0"
+                Background="White"
+                CornerRadius="8"
+                BorderBrush="#D8DFEA"
+                BorderThickness="1"
+                Padding="8">
+            <DataGrid x:Name="HistoryGrid"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      RowBackground="White"
+                      AlternatingRowBackground="#F8FAFC">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="项目" Binding="{Binding ProjectName}" Width="100"/>
+                    <DataGridTextColumn Header="Pos(类型)" Binding="{Binding TypeName}" Width="80"/>
+                    <DataGridTextColumn Header="物料号" Binding="{Binding SubTypeName}" Width="140"/>
+                    <DataGridTextColumn Header="设备" Binding="{Binding MachineName}" Width="120"/>
+                    <DataGridTextColumn Header="SU上料链（扫码内容）" Binding="{Binding SuChain}" Width="3*"/>
+                    <DataGridTextColumn Header="成功次数" Binding="{Binding UploadCount}" Width="80"/>
+                    <DataGridTextColumn Header="最后时间" Binding="{Binding LastTime}" Width="150"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</Window>

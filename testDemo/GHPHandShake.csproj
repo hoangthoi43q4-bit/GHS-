@@ -102,12 +102,17 @@
     <Compile Include="Config.cs" />
     <Compile Include="Models\MaterialConfig.cs" />
     <Compile Include="Models\MaterialProjectNode.cs" />
+    <Compile Include="Models\MaterialUploadHistoryGroupItem.cs" />
+    <Compile Include="Models\MaterialUploadHistoryStore.cs" />
+    <Compile Include="Models\MaterialUploadLogEntry.cs" />
     <Compile Include="Models\MaterialSubType.cs" />
     <Compile Include="Models\MaterialType.cs" />
     <Compile Include="ReleaseInfoWindow.xaml.cs">
       <DependentUpon>ReleaseInfoWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Services\FileLogger.cs" />
     <Compile Include="Services\MaterialClassifier.cs" />
+    <Compile Include="Services\MaterialUploadHistoryService.cs" />
     <Compile Include="Services\SelectMatPos.cs" />
     <Compile Include="SettingsWindow.xaml.cs">
       <DependentUpon>SettingsWindow.xaml</DependentUpon>
@@ -119,6 +124,9 @@
     </Compile>
     <Compile Include="Windows\MaterialSettingWindow.xaml.cs">
       <DependentUpon>MaterialSettingWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\MaterialUploadHistoryWindow.xaml.cs">
+      <DependentUpon>MaterialUploadHistoryWindow.xaml</DependentUpon>
     </Compile>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -145,6 +153,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Windows\MaterialSettingWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\MaterialUploadHistoryWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

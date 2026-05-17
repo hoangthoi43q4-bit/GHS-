@@ -1,4 +1,5 @@
 ﻿using GHPHandShake.Models;
+using GHPHandShake.Services;
 using GHPHandShake.Views;
 using GHPHandShake.Windows;
 using Newtonsoft.Json;
@@ -19,6 +20,7 @@ namespace GHPHandShake
     {
         private Config _config;
         private MaterialConfig _materialConfig;
+        private readonly MaterialUploadHistoryService _uploadHistoryService = new MaterialUploadHistoryService();
         private readonly ObservableCollection<ProjectMaterialStatusItem> _projectMaterialStatuses = new ObservableCollection<ProjectMaterialStatusItem>();
 
         public class ProjectMaterialStatusItem
@@ -44,6 +46,7 @@ namespace GHPHandShake
             public string AssociatedMachineName { get; set; } // 这是找到的设备的 EquipmentId
             public string MatLabel { get; set; }
             public string ProjectName { get; set; }
+            public string TypeName { get; set; }
         }
 
         public MainWindow()
@@ -51,6 +54,7 @@ namespace GHPHandShake
             InitializeComponent();
             InputTextBox.Text = ""; // 初始内容
             ProjectMaterialsGrid.ItemsSource = _projectMaterialStatuses;
+            FileLogger.Initialize();
 
             // 加载IP配置文件
             _config = Config.Load();
@@ -151,6 +155,14 @@ namespace GHPHandShake
             LoadProjectSelector();
         }
 
+        private void MaterialUploadHistoryButton_Click(object sender, RoutedEventArgs e)
+        {
+            _uploadHistoryService.Load();
+            string currentProject = ProjectComboBox.SelectedItem as string;
+            var historyWindow = new MaterialUploadHistoryWindow(_uploadHistoryService, currentProject);
+            historyWindow.ShowDialog();
+        }
+
         // 发送消息逻辑
         private async void SendMessage()
         {
@@ -190,6 +202,9 @@ namespace GHPHandShake
             // 【新增调试信息】在连接前，明确打印出将要使用的IP和端口。
             AppendMessage($"准备连接到查找到的目标: {routingInfo.TargetIp}:{routingInfo.TargetPort}");
 
+            bool ackSuccess = false;
+            string responseText = string.Empty;
+
             try
             {
                 using (TcpClient client = new TcpClient())
@@ -213,10 +228,11 @@ namespace GHPHandShake
 
                     if (bytesRead > 0)
                     {
-                        string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-                        AppendMessage($"响应: {response}");
-                        if (response.IndexOf("ACK", StringComparison.OrdinalIgnoreCase) >= 0)
+                        responseText = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+                        AppendMessage($"响应: {responseText}");
+                        if (responseText.IndexOf("ACK", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
+                            ackSuccess = true;
                             SetMaterialStatus(routingInfo.MatLabel, "上传成功(ACK)");
                         }
                         else
@@ -226,6 +242,7 @@ namespace GHPHandShake
                     }
                     else
                     {
+                        responseText = "服务器未返回数据";
                         AppendMessage("响应: 服务器未返回数据");
                         SetMaterialStatus(routingInfo.MatLabel, "上传未成功");
                     }
@@ -233,16 +250,42 @@ namespace GHPHandShake
             }
             catch (Exception ex)
             {
+                responseText = ex.Message;
                 AppendMessage($"错误: {ex.Message}");
                 SetMaterialStatus(routingInfo.MatLabel, "上传未成功");
             }
+
+            RecordUploadHistory(message, routingInfo, ackSuccess, responseText);
+        }
+
+        private void RecordUploadHistory(string scanContent, MessageRoutingInfo routingInfo, bool ackSuccess, string response)
+        {
+            _uploadHistoryService.AddEntry(new MaterialUploadLogEntry
+            {
+                Timestamp = DateTime.Now,
+                ProjectName = routingInfo.ProjectName,
+                TypeName = routingInfo.TypeName,
+                SubTypeName = routingInfo.MatLabel,
+                MachineName = routingInfo.AssociatedMachineName,
+                ScanContent = scanContent,
+                IsAckSuccess = ackSuccess,
+                Response = response
+            });
+
+            string resultText = ackSuccess ? "ACK成功" : "未成功";
+            AppendMessage($"[上料记录] 项目={routingInfo.ProjectName}, Pos={routingInfo.TypeName}, 物料={routingInfo.MatLabel}, 结果={resultText}");
         }
 
         // 更新消息列表
         private void AppendMessage(string message)
         {
-            MessageListBox.Items.Add(DateTime.Now +" "+ message);
-            MessageListBox.ScrollIntoView(message);
+            string line = DateTime.Now + " " + message;
+            MessageListBox.Items.Add(line);
+            if (MessageListBox.Items.Count > 0)
+            {
+                MessageListBox.ScrollIntoView(MessageListBox.Items[MessageListBox.Items.Count - 1]);
+            }
+            FileLogger.Log(message);
         }
 
         //
@@ -311,7 +354,8 @@ namespace GHPHandShake
                 MessageToSend = foundMaterial.SubTypeName,
                 AssociatedMachineName = machine.EquipmentId,
                 MatLabel = foundMaterial.SubTypeName,
-                ProjectName = matchedType?.ProjectName
+                ProjectName = matchedType?.ProjectName,
+                TypeName = matchedType?.TypeName
             };
         }
 
