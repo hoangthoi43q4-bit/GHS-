@@ -60,5 +60,10 @@ namespace GHPHandShake.Windows
             LoadProjectFilter();
             RefreshGrid();
         }
+
+        private void HistoryGrid_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            e.Row.Height = double.NaN;
+        }
     }
 }
