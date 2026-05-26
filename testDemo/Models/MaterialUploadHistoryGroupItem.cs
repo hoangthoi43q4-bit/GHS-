@@ -7,7 +7,10 @@ namespace GHPHandShake.Models
         public string TypeName { get; set; }
         public string SubTypeName { get; set; }
         public string MachineName { get; set; }
-        public string SuChain { get; set; }
+        /// <summary>最近一次成功上料的完整 SU（扫码内容）。</summary>
+        public string LatestScanContent { get; set; }
+        /// <summary>主表摘要显示（截断）。</summary>
+        public string LatestScanPreview { get; set; }
         public int UploadCount { get; set; }
         public string LastTime { get; set; }
     }

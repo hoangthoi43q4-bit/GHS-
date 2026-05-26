@@ -102,6 +102,7 @@
     <Compile Include="Config.cs" />
     <Compile Include="Models\MaterialConfig.cs" />
     <Compile Include="Models\MaterialProjectNode.cs" />
+    <Compile Include="Models\MaterialUploadHistoryDetailItem.cs" />
     <Compile Include="Models\MaterialUploadHistoryGroupItem.cs" />
     <Compile Include="Models\MaterialUploadHistoryStore.cs" />
     <Compile Include="Models\MaterialUploadLogEntry.cs" />

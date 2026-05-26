@@ -80,24 +80,25 @@ namespace GHPHandShake.Services
                     .Select(g =>
                     {
                         var ordered = g.OrderBy(x => x.Timestamp).ToList();
-                        var successScans = ordered
+                        var successEntries = ordered
                             .Where(x => x.IsAckSuccess && !string.IsNullOrWhiteSpace(x.ScanContent))
-                            .Select(x => x.ScanContent.Trim())
                             .ToList();
 
-                        string chain = successScans.Count == 0
-                            ? "（暂无成功上料记录）"
-                            : string.Join(" -> ", successScans);
-
+                        var lastSuccess = successEntries.LastOrDefault();
                         var last = ordered.Last();
+                        string latestFull = lastSuccess?.ScanContent?.Trim() ?? string.Empty;
+
                         return new MaterialUploadHistoryGroupItem
                         {
                             ProjectName = g.Key.Project,
                             TypeName = g.Key.Type,
                             SubTypeName = g.Key.Sub,
                             MachineName = last.MachineName,
-                            SuChain = chain,
-                            UploadCount = successScans.Count,
+                            LatestScanContent = latestFull,
+                            LatestScanPreview = string.IsNullOrEmpty(latestFull)
+                                ? "（暂无成功上料）"
+                                : TruncatePreview(latestFull),
+                            UploadCount = successEntries.Count,
                             LastTime = last.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")
                         };
                     })
@@ -105,6 +106,39 @@ namespace GHPHandShake.Services
                     .ThenBy(x => x.TypeName)
                     .ThenBy(x => x.SubTypeName)
                     .ToList();
+            }
+        }
+
+        public IList<MaterialUploadHistoryDetailItem> GetDetailHistory(
+            string projectName,
+            string typeName,
+            string subTypeName)
+        {
+            lock (_syncRoot)
+            {
+                var entries = _store.Entries
+                    .Where(e =>
+                        string.Equals(e.ProjectName ?? string.Empty, projectName ?? string.Empty, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(e.TypeName ?? string.Empty, typeName ?? string.Empty, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(e.SubTypeName ?? string.Empty, subTypeName ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(e => e.Timestamp)
+                    .ToList();
+
+                var details = new List<MaterialUploadHistoryDetailItem>();
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    var entry = entries[i];
+                    details.Add(new MaterialUploadHistoryDetailItem
+                    {
+                        Index = i + 1,
+                        Timestamp = entry.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
+                        ScanContent = entry.ScanContent ?? string.Empty,
+                        ResultText = entry.IsAckSuccess ? "ACK成功" : "未成功",
+                        IsAckSuccess = entry.IsAckSuccess
+                    });
+                }
+
+                return details;
             }
         }
 
@@ -125,6 +159,16 @@ namespace GHPHandShake.Services
         {
             string json = JsonConvert.SerializeObject(_store, Formatting.Indented);
             File.WriteAllText(HistoryFilePath, json);
+        }
+
+        private static string TruncatePreview(string text, int maxLength = 48)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+            {
+                return text;
+            }
+
+            return text.Substring(0, maxLength) + "...";
         }
     }
 }
