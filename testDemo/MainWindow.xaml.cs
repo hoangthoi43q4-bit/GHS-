@@ -197,7 +197,7 @@ namespace GHPHandShake
             SetMaterialStatus(routingInfo.MatLabel, "等待ACK");
 
             // 步骤 3: 使用查找到的信息来生成最终的指令。
-            string commandGenerated = processor.GenerateLoadCommand(message, routingInfo.AssociatedMachineName, config: _materialConfig);
+            string commandGenerated = processor.GenerateLoadCommand(message, routingInfo );
 
             // 【新增调试信息】在连接前，明确打印出将要使用的IP和端口。
             AppendMessage($"准备连接到查找到的目标: {routingInfo.TargetIp}:{routingInfo.TargetPort}");

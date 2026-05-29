@@ -1,10 +1,11 @@
 ﻿using GHPHandShake.Models;
+using GHPHandShake.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using GHPHandShake.Services;
+using static GHPHandShake.MainWindow;
 
 
 namespace GHPHandShake.Views
@@ -57,20 +58,24 @@ namespace GHPHandShake.Views
 
         public string GenerateLoadCommand(
             string input,
-            string StationName ,
-            MaterialConfig config,
+            MessageRoutingInfo config,
             int tokens = 3
             )
         {
             string processed = Process(input);
             string timestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
 
-            //使用SelectMatPos方法 获得mat_pos
-            int matPos = SelectMatPos.GetMatPos(processed, config);
+            //使用SelectMatPos方法 获得mat_pos 
+            //int matPos = SelectMatPos.GetMatPos(processed, config);
+            //USE MessageRoutingInfo to replace MaterialConfig 20260529
 
-            return $"LOAD_MATERIAL,{StationName},10,{timestamp}," +
+            int matPos = Int32.Parse(config.TypeName);
+
+            return $"LOAD_MATERIAL,{config.AssociatedMachineName},10,{timestamp}," +
                    $"<LoadMaterial mat_pos_1=\"{matPos}\" mat_uid_1=\"{processed}\" tokens=\"{tokens}\" />";
         }
+
+
 
         public string FindMaterial(string input)
         {
