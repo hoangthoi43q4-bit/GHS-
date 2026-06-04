@@ -230,7 +230,7 @@ namespace GHPHandShake
                     {
                         responseText = Encoding.ASCII.GetString(buffer, 0, bytesRead);
                         AppendMessage($"响应: {responseText}");
-                        if (responseText.IndexOf("ACK", StringComparison.OrdinalIgnoreCase) >= 0)
+                        if (responseText.IndexOf("ACK") >= 0)
                         {
                             ackSuccess = true;
                             SetMaterialStatus(routingInfo.MatLabel, "上传成功(ACK)");
