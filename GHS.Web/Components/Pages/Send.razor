@@ -103,7 +103,7 @@
         _equipments = await db.Equipments.OrderBy(e => e.EquipmentId).ToListAsync();
 
         _materialConfig = new();
-        var types = await db.MaterialTypes.Include(t => db.MaterialTypes).ToListAsync();
+        var types = await db.MaterialTypes.OrderBy(t => t.ProjectId).ThenBy(t => t.TypeName).ToListAsync();
         // Simplified: rebuild MaterialTypeInfo list
         var eqMap = _equipments.ToDictionary(e => e.Id, e => e.EquipmentId);
         foreach (var t in types)
