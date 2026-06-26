@@ -1,0 +1,177 @@
+@page "/materials"
+@inject IDbContextFactory<GHSDbContext> DbFactory
+@inject MaterialService MaterialService
+@inject ProjectService ProjectService
+@inject DeviceService DeviceService
+
+<PageTitle>物料配置 — GHP HandShake Web</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">物料配置</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-3">项目管理</MudText>
+            <MudGrid>
+                <MudItem xs="8">
+                    <MudTextField @bind-Value="_newProjectName" Label="项目名称" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="4" Class="d-flex align-end">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProjectAsync">添加项目</MudButton>
+                </MudItem>
+            </MudGrid>
+            <MudList Class="mt-2" T="string">
+                @foreach (var p in _projects)
+                {
+                    <MudListItem Text="@p.Name" Icon="@Icons.Material.Filled.Folder" T="string">
+                        <ChildContent>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           OnClick="() => DeleteProjectAsync(p)" />
+                        </ChildContent>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-3">添加物料类型 + 子类型</MudText>
+            <MudSelect @bind-Value="_selectedProjectAdd" Label="所属项目" Variant="Variant.Outlined" Class="mb-3" T="string">
+                @foreach (var p in _projects) { <MudSelectItem Value="@p.Name">@p.Name</MudSelectItem> }
+            </MudSelect>
+            <MudTextField @bind-Value="_newTypeName" Label="类型名 (Pos 数字)" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField @bind-Value="_newSubTypeName" Label="子类名 (物料号)" Variant="Variant.Outlined" Class="mb-3" />
+            <MudSelect @bind-Value="_selectedEquipment" Label="关联设备" Variant="Variant.Outlined" Class="mb-3" T="string">
+                @foreach (var e in _equipments) { <MudSelectItem Value="@e.EquipmentId">@e.EquipmentId</MudSelectItem> }
+            </MudSelect>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddSubTypeAsync">添加子类型</MudButton>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-3">
+                物料列表 (@_selectedProjectFilter)
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Class="ml-4" StartIcon="@Icons.Material.Filled.FileUpload"
+                           OnClick="ImportExcelAsync">从 Excel 导入</MudButton>
+            </MudText>
+            <MudSelect @bind-Value="_selectedProjectFilter" Label="筛选项目" Variant="Variant.Outlined" Class="mb-3" T="string">
+                @foreach (var p in _projects) { <MudSelectItem Value="@p.Name">@p.Name</MudSelectItem> }
+            </MudSelect>
+            <MudDataGrid Items="@_materialSubs" ReadOnly="true" Hover="true" Striped="true" Dense="true">
+                <Columns>
+                    <PropertyColumn Property="x => x.TypeName" Title="类型(Pos)" />
+                    <PropertyColumn Property="x => x.SubTypeName" Title="物料号" />
+                    <PropertyColumn Property="x => x.AssociatedMachineName" Title="关联设备" />
+                    <TemplateColumn Title="操作" CellClass="text-center">
+                        <CellTemplate>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           OnClick="() => DeleteSubTypeAsync(context.Item)" />
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<InputFile Type="InputFileType" OnChange="OnFileSelected" style="display:none" id="excelInput" accept=".xlsx,.xlsm,.xlsb" />
+
+@code {
+    private List<Project> _projects = new();
+    private List<Equipment> _equipments = new();
+    private List<MaterialSubTypeEntity> _materialSubs = new();
+    private string _newProjectName = "";
+    private string _selectedProjectAdd = "";
+    private string _selectedProjectFilter = "";
+    private string _newTypeName = "";
+    private string _newSubTypeName = "";
+    private string _selectedEquipment = "";
+    private InputFile? _excelInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _projects = await ProjectService.GetAllAsync();
+        _equipments = await DeviceService.GetAllAsync();
+        if (_projects.Any())
+        {
+            _selectedProjectAdd = _projects.First().Name;
+            _selectedProjectFilter = _projects.First().Name;
+        }
+        await RefreshMaterialListAsync();
+    }
+
+    private async Task AddProjectAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newProjectName)) return;
+        await ProjectService.AddAsync(_newProjectName);
+        _newProjectName = "";
+        _projects = await ProjectService.GetAllAsync();
+    }
+
+    private async Task DeleteProjectAsync(Project p)
+    {
+        await ProjectService.DeleteAsync(p.Id);
+        _projects = await ProjectService.GetAllAsync();
+    }
+
+    private async Task AddSubTypeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedProjectAdd) || string.IsNullOrWhiteSpace(_newTypeName) ||
+            string.IsNullOrWhiteSpace(_newSubTypeName) || string.IsNullOrWhiteSpace(_selectedEquipment)) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Name == _selectedProjectAdd);
+        if (project == null) return;
+
+        var type = await db.MaterialTypes.FirstOrDefaultAsync(t => t.ProjectId == project.Id && t.TypeName == _newTypeName.Trim());
+        if (type == null)
+        {
+            type = new MaterialTypeEntity { ProjectId = project.Id, TypeName = _newTypeName.Trim() };
+            db.MaterialTypes.Add(type);
+            await db.SaveChangesAsync();
+        }
+
+        var eq = await db.Equipments.FirstOrDefaultAsync(e => e.EquipmentId == _selectedEquipment);
+        await MaterialService.AddSubTypeAsync(type.Id, _newSubTypeName.Trim(), eq?.Id ?? 0);
+
+        _newTypeName = "";
+        _newSubTypeName = "";
+        _selectedEquipment = "";
+        await RefreshMaterialListAsync();
+    }
+
+    private async Task DeleteSubTypeAsync(MaterialSubTypeEntity sub)
+    {
+        await MaterialService.DeleteSubTypeAsync(sub.Id);
+        await RefreshMaterialListAsync();
+    }
+
+    private async Task RefreshMaterialListAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedProjectFilter)) { _materialSubs.Clear(); return; }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Name == _selectedProjectFilter);
+        if (project == null) { _materialSubs.Clear(); return; }
+        _materialSubs = await MaterialService.GetSubTypesWithInfoAsync(project.Id);
+    }
+
+    private async Task ImportExcelAsync()
+    {
+        // Trigger file input via JS (simplified: use a direct approach)
+        // For now, implement as a dialog-prompted flow
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            int count = await MaterialService.ImportFromExcelAsync(stream);
+            // Snackbar notification would go here
+            await RefreshMaterialListAsync();
+        }
+    }
+}

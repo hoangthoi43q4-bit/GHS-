@@ -1,0 +1,95 @@
+@page "/equipments"
+@inject DeviceService DeviceService
+
+<PageTitle>设备管理 — GHP HandShake Web</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">设备管理</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudText Typo="Typo.h6" Class="mb-3">添加/编辑设备</MudText>
+    <MudGrid>
+        <MudItem xs="12" md="3">
+            <MudTextField @bind-Value="_editItem.EquipmentId" Label="站位信息 (Equipment ID)" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudTextField @bind-Value="_editItem.ServerIp" Label="目标 IP" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudTextField @bind-Value="_portStr" Label="目标端口" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudTextField @bind-Value="_editItem.Description" Label="描述" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="2" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Class="mr-2">保存</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="ResetEdit">取消</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <MudText Typo="Typo.h6" Class="mb-3">已存设备列表</MudText>
+    <MudDataGrid Items="@_equipments" ReadOnly="false" Hover="true" Striped="true">
+        <Columns>
+            <PropertyColumn Property="x => x.EquipmentId" Title="站位信息" />
+            <PropertyColumn Property="x => x.ServerIp" Title="IP 地址" />
+            <PropertyColumn Property="x => x.ServerPort" Title="端口" />
+            <PropertyColumn Property="x => x.Description" Title="描述" />
+            <TemplateColumn Title="操作" CellClass="text-center">
+                <CellTemplate>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                   OnClick="() => EditAsync(context.Item)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                   OnClick="() => DeleteAsync(context.Item)" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+</MudPaper>
+
+@code {
+    private List<Equipment> _equipments = new();
+    private Equipment _editItem = new();
+    private string _portStr = "2001";
+    private bool _isEditing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _equipments = await DeviceService.GetAllAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_editItem.EquipmentId)) return;
+        if (!int.TryParse(_portStr, out int port) || port <= 0 || port > 65535) return;
+        _editItem.ServerPort = port;
+
+        if (_isEditing && _editItem.Id > 0)
+            await DeviceService.UpdateAsync(_editItem.Id, _editItem.EquipmentId, _editItem.ServerIp, port, _editItem.Description);
+        else
+            await DeviceService.AddAsync(_editItem.EquipmentId, _editItem.ServerIp, port, _editItem.Description);
+
+        _equipments = await DeviceService.GetAllAsync();
+        ResetEdit();
+    }
+
+    private async Task EditAsync(Equipment eq)
+    {
+        _editItem = new Equipment { Id = eq.Id, EquipmentId = eq.EquipmentId, ServerIp = eq.ServerIp, ServerPort = eq.ServerPort, Description = eq.Description };
+        _portStr = eq.ServerPort.ToString();
+        _isEditing = true;
+    }
+
+    private async Task DeleteAsync(Equipment eq)
+    {
+        await DeviceService.DeleteAsync(eq.Id);
+        _equipments = await DeviceService.GetAllAsync();
+    }
+
+    private void ResetEdit()
+    {
+        _editItem = new Equipment();
+        _portStr = "2001";
+        _isEditing = false;
+    }
+}

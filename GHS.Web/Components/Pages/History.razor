@@ -1,0 +1,93 @@
+@page "/history"
+@inject UploadHistoryService HistoryService
+
+<PageTitle>上传历史 — GHP HandShake Web</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">上传历史</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="6" md="3">
+            <MudSelect @bind-Value="_selectedProject" Label="筛选项目" Variant="Variant.Outlined" T="string">
+                <MudSelectItem Value="@AllProjects">（全部项目）</MudSelectItem>
+                @foreach (var p in _projectNames)
+                {
+                    <MudSelectItem Value="@p">@p</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" md="3" Class="d-flex align-end">
+            <MudButton Variant="Variant.Outlined" OnClick="RefreshAsync">刷新</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudGrid>
+    <MudItem xs="12" md="7">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-3">上料摘要（按 项目 / Pos / 物料号）</MudText>
+            <MudDataGrid Items="@_groupedHistory" ReadOnly="true" Hover="true" Striped="true" Dense="true"
+                         SelectedItem="@_selectedGroup" SelectedItemChanged="(UploadHistoryGroupItem g) => OnGroupSelected(g)">
+                <Columns>
+                    <PropertyColumn Property="x => x.ProjectName" Title="项目" />
+                    <PropertyColumn Property="x => x.TypeName" Title="Pos" />
+                    <PropertyColumn Property="x => x.SubTypeName" Title="物料号" />
+                    <PropertyColumn Property="x => x.MachineName" Title="设备" />
+                    <PropertyColumn Property="x => x.LatestScanPreview" Title="最近SU" />
+                    <PropertyColumn Property="x => x.UploadCount" Title="成功次数" />
+                    <PropertyColumn Property="x => x.LastTime" Title="最后时间" />
+                </Columns>
+            </MudDataGrid>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="5">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-3">
+                上料明细
+                @if (_selectedGroup != null)
+                {
+                    <span>：@_selectedGroup.ProjectName / @_selectedGroup.TypeName / @_selectedGroup.SubTypeName</span>
+                }
+            </MudText>
+            <MudDataGrid Items="@_detailHistory" ReadOnly="true" Hover="true" Striped="true" Dense="true">
+                <Columns>
+                    <PropertyColumn Property="x => x.Index" Title="#" />
+                    <PropertyColumn Property="x => x.Timestamp" Title="时间" />
+                    <PropertyColumn Property="x => x.ResultText" Title="结果" />
+                    <PropertyColumn Property="x => x.ScanContent" Title="SU（扫码内容）" />
+                </Columns>
+            </MudDataGrid>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private const string AllProjects = "（全部项目）";
+    private List<string> _projectNames = new();
+    private string _selectedProject = AllProjects;
+    private List<UploadHistoryGroupItem> _groupedHistory = new();
+    private List<UploadHistoryDetailItem> _detailHistory = new();
+    private UploadHistoryGroupItem? _selectedGroup;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _projectNames = await HistoryService.GetProjectNamesAsync();
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        string? filter = _selectedProject == AllProjects ? null : _selectedProject;
+        _groupedHistory = await HistoryService.GetGroupedHistoryAsync(filter);
+        _detailHistory.Clear();
+        _selectedGroup = null;
+    }
+
+    private async Task OnGroupSelected(UploadHistoryGroupItem group)
+    {
+        _selectedGroup = group;
+        _detailHistory = await HistoryService.GetDetailHistoryAsync(
+            group.ProjectName, group.TypeName, group.SubTypeName);
+    }
+}

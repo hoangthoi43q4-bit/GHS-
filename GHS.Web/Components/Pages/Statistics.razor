@@ -1,0 +1,72 @@
+@page "/statistics"
+@inject StatisticsService StatsService
+
+<PageTitle>统计图表 — GHP HandShake Web</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">统计图表</MudText>
+
+<MudGrid>
+    <MudItem xs="6" md="3">
+        <MudPaper Class="pa-4 text-center" Elevation="1">
+            <MudText Typo="Typo.caption">总上料次数</MudText>
+            <MudText Typo="Typo.h3" Color="Color.Primary">@_summary?.TotalUploads</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="6" md="3">
+        <MudPaper Class="pa-4 text-center" Elevation="1">
+            <MudText Typo="Typo.caption">成功次数</MudText>
+            <MudText Typo="Typo.h3" Color="Color.Success">@_summary?.SuccessCount</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="6" md="3">
+        <MudPaper Class="pa-4 text-center" Elevation="1">
+            <MudText Typo="Typo.caption">成功率</MudText>
+            <MudText Typo="Typo.h3" Color="Color.Info">@_summary?.SuccessRate%</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="6" md="3">
+        <MudPaper Class="pa-4 text-center" Elevation="1">
+            <MudText Typo="Typo.caption">今日上料</MudText>
+            <MudText Typo="Typo.h3" Color="Color.Warning">@_summary?.TodayUploads</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-3">设备上料排行</MudText>
+            <MudDataGrid Items="@_equipmentStats" ReadOnly="true" Hover="true" Dense="true">
+                <Columns>
+                    <PropertyColumn Property="x => x.EquipmentId" Title="设备" />
+                    <PropertyColumn Property="x => x.Total" Title="总次数" />
+                    <PropertyColumn Property="x => x.Success" Title="成功次数" />
+                </Columns>
+            </MudDataGrid>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-3">近7天上料趋势</MudText>
+            <MudDataGrid Items="@_dailyStats" ReadOnly="true" Hover="true" Dense="true">
+                <Columns>
+                    <PropertyColumn Property="x => x.Date" Title="日期" />
+                    <PropertyColumn Property="x => x.Total" Title="总次数" />
+                    <PropertyColumn Property="x => x.Success" Title="成功次数" />
+                </Columns>
+            </MudDataGrid>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private StatisticsSummary? _summary;
+    private List<EquipmentStats> _equipmentStats = new();
+    private List<DailyStats> _dailyStats = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _summary = await StatsService.GetSummaryAsync();
+        _equipmentStats = await StatsService.GetEquipmentStatsAsync();
+        _dailyStats = await StatsService.GetDailyStatsAsync(7);
+    }
+}

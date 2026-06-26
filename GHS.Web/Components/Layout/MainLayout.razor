@@ -1,0 +1,35 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="_theme" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Color="Color.Primary">
+        <MudText Typo="Typo.h5" Class="ml-3">GHP HandShake Web</MudText>
+        <MudSpacer />
+        <MudText Typo="Typo.body2" Class="mr-3">工业设备物料通信系统</MudText>
+    </MudAppBar>
+
+    <MudDrawer Open="true" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#2563EB",
+            Secondary = "#334155",
+            AppbarBackground = "#1E3A8A"
+        }
+    };
+}
