@@ -95,7 +95,9 @@ public class MaterialService
     }
 
     /// <summary>
-    /// Excel import with 5 columns: Type(Pos), SubType(物料号), Equipment, Project, Line(线体)
+    /// Excel import. Supports both 3-column and 5-column formats:
+    ///   A: Type(Pos), B: SubType(物料号), C: Equipment, D: Project(可选), E: Line/线体(可选)
+    /// When project/line are missing, defaults to "Default".
     /// </summary>
     public async Task<int> ImportFromExcelAsync(Stream excelStream)
     {
@@ -114,11 +116,10 @@ public class MaterialService
             string typeName = row.Cell(1).GetValue<string>().Trim();
             string subTypeName = row.Cell(2).GetValue<string>().Trim();
             string machineName = row.Cell(3).GetValue<string>().Trim();
-            string projectName = row.Cell(4).GetValue<string>().Trim();
-            string lineName = row.Cell(5).GetValue<string>().Trim();
+            string projectName = GetCellOrDefault(row, 4, "Default");
+            string lineName = GetCellOrDefault(row, 5, "Default");
 
-            if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(subTypeName) ||
-                string.IsNullOrEmpty(projectName) || string.IsNullOrEmpty(lineName))
+            if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(subTypeName))
                 continue;
 
             // Find or create Line
@@ -180,6 +181,22 @@ public class MaterialService
 
         await db.SaveChangesAsync();
         return importCount;
+    }
+
+    /// <summary>
+    /// Safely read a cell value, returning defaultValue if the cell is empty or out of range.
+    /// </summary>
+    private static string GetCellOrDefault(IXLRangeRow row, int column, string defaultValue)
+    {
+        try
+        {
+            string val = row.Cell(column).GetValue<string>().Trim();
+            return string.IsNullOrEmpty(val) ? defaultValue : val;
+        }
+        catch
+        {
+            return defaultValue;
+        }
     }
 
     public async Task DeleteTypeAsync(int id)

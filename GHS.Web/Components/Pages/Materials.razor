@@ -4,6 +4,8 @@
 @inject ProjectService ProjectService
 @inject DeviceService DeviceService
 @inject LineService LineService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
 <PageTitle>物料配置 — GHP HandShake Web</PageTitle>
 
@@ -89,8 +91,9 @@
         <MudPaper Class="pa-4" Elevation="1">
             <MudText Typo="Typo.h6" Class="mb-3">
                 物料列表
-                <InputFile OnChange="OnFileSelected" accept=".xlsx,.xlsm,.xlsb"
-                          Class="ml-4 MudButton-root MudButton-outlined MudButton-outlined-default MudButton-sizeSmall" />
+                <InputFile @ref="_excelInputRef" OnChange="OnFileSelected" accept=".xlsx,.xlsm,.xlsb" style="display:none" />
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Class="ml-4" StartIcon="@Icons.Material.Filled.FileUpload"
+                           OnClick="TriggerExcelUpload">从 Excel 导入</MudButton>
             </MudText>
             <MudGrid>
                 <MudItem xs="6" md="3">
@@ -141,6 +144,7 @@
     private string _newTypeName = "";
     private string _newSubTypeName = "";
     private string _selectedEquipment = "";
+    private InputFile? _excelInputRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -238,16 +242,33 @@
         await RefreshMaterialListAsync();
     }
 
+    private async Task TriggerExcelUpload()
+    {
+        if (_excelInputRef?.Element != null)
+        {
+            await JS.InvokeVoidAsync("clickElement", _excelInputRef.Element.Value);
+        }
+    }
+
     private async Task OnFileSelected(InputFileChangeEventArgs e)
     {
         var file = e.File;
         if (file != null)
         {
-            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-            int count = await MaterialService.ImportFromExcelAsync(stream);
-            _lines = await LineService.GetAllAsync();
-            _projects = await ProjectService.GetAllAsync();
-            await RefreshMaterialListAsync();
+            try
+            {
+                await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                int count = await MaterialService.ImportFromExcelAsync(stream);
+                _lines = await LineService.GetAllAsync();
+                _projects = await ProjectService.GetAllAsync();
+                _equipments = await DeviceService.GetAllAsync();
+                await RefreshMaterialListAsync();
+                Snackbar.Add($"成功导入 {count} 条物料记录！", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"导入失败: {ex.Message}", Severity.Error);
+            }
         }
     }
 }
