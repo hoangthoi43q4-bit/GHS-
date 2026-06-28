@@ -24,17 +24,16 @@
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddLineAsync">添加</MudButton>
                 </MudItem>
             </MudGrid>
-            <MudList Class="mt-2" T="Line">
+            <MudPaper Class="mt-2 pa-2" Style="max-height:200px;overflow-y:auto;" Outlined="true">
                 @foreach (var l in _lines)
                 {
-                    <MudListItem T="Line" Text="@l.Name" Icon="@Icons.Material.Filled.AccountTree">
-                        <ChildContent>
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
-                                           OnClick="() => DeleteLineAsync(l)" />
-                        </ChildContent>
-                    </MudListItem>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #eee;">
+                        <span style="font-weight:500;">🏭 @l.Name</span>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                       OnClick="() => DeleteLineAsync(l)" />
+                    </div>
                 }
-            </MudList>
+            </MudPaper>
         </MudPaper>
     </MudItem>
 
@@ -53,17 +52,16 @@
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProjectAsync">添加</MudButton>
                 </MudItem>
             </MudGrid>
-            <MudList Class="mt-2" T="Project">
+            <MudPaper Class="mt-2 pa-2" Style="max-height:200px;overflow-y:auto;" Outlined="true">
                 @foreach (var p in _projects.Where(p => string.IsNullOrEmpty(_selectedLineForProject) || p.LineName == _selectedLineForProject))
                 {
-                    <MudListItem T="Project" Text="@($"[{p.LineName}] {p.Name}")" Icon="@Icons.Material.Filled.Folder">
-                        <ChildContent>
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
-                                           OnClick="() => DeleteProjectAsync(p)" />
-                        </ChildContent>
-                    </MudListItem>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #eee;">
+                        <span style="font-weight:500;">📁 [@p.LineName] @p.Name</span>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                       OnClick="() => DeleteProjectAsync(p)" />
+                    </div>
                 }
-            </MudList>
+            </MudPaper>
         </MudPaper>
     </MudItem>
 
