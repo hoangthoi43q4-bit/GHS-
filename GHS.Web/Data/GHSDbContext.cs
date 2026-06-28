@@ -7,6 +7,7 @@ public class GHSDbContext : DbContext
 {
     public GHSDbContext(DbContextOptions<GHSDbContext> options) : base(options) { }
 
+    public DbSet<Line> Lines => Set<Line>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<Equipment> Equipments => Set<Equipment>();
     public DbSet<MaterialTypeEntity> MaterialTypes => Set<MaterialTypeEntity>();
@@ -17,12 +18,21 @@ public class GHSDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Line>(entity =>
+        {
+            entity.ToTable("lines");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.HasIndex(e => e.Name).IsUnique();
+        });
+
         modelBuilder.Entity<Project>(entity =>
         {
             entity.ToTable("projects");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasOne<Line>().WithMany().HasForeignKey(e => e.LineId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.LineId, e.Name }).IsUnique();
         });
 
         modelBuilder.Entity<Equipment>(entity =>
@@ -57,10 +67,12 @@ public class GHSDbContext : DbContext
         {
             entity.ToTable("upload_history");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.LineName).HasMaxLength(100);
             entity.Property(e => e.ProjectName).HasMaxLength(100);
             entity.Property(e => e.TypeName).HasMaxLength(10);
             entity.Property(e => e.SubTypeName).HasMaxLength(200);
             entity.Property(e => e.EquipmentId).HasMaxLength(100);
+            entity.HasIndex(e => e.LineName);
             entity.HasIndex(e => e.ProjectName);
             entity.HasIndex(e => e.Timestamp);
             entity.HasIndex(e => e.SubTypeName);

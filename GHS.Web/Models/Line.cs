@@ -1,11 +1,9 @@
 namespace GHS.Web.Models;
 
-public class Project
+public class Line
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public int LineId { get; set; }
-    public string LineName { get; set; } = string.Empty; // navigation helper
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

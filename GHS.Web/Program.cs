@@ -21,6 +21,7 @@ builder.Services.AddDbContextFactory<GHSDbContext>(options =>
 // Application Services
 builder.Services.AddSingleton<TcpConnectionPool>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TcpConnectionPool>());
+builder.Services.AddScoped<LineService>();
 builder.Services.AddScoped<DeviceService>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<MaterialService>();

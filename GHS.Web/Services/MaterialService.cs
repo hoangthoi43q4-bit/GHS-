@@ -52,7 +52,7 @@ public class MaterialService
             .ToListAsync();
     }
 
-    public async Task<List<MaterialSubTypeEntity>> GetSubTypesWithInfoAsync(int projectId)
+    public async Task<List<MaterialSubTypeEntity>> GetSubTypesWithInfoAsync(int lineId, int projectId)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
         return await db.MaterialSubTypes
@@ -94,9 +94,13 @@ public class MaterialService
         await db.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Excel import with 5 columns: Type(Pos), SubType(物料号), Equipment, Project, Line(线体)
+    /// </summary>
     public async Task<int> ImportFromExcelAsync(Stream excelStream)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
+        var lines = await db.Lines.ToListAsync();
         var projects = await db.Projects.ToListAsync();
         var equipments = await db.Equipments.ToListAsync();
         int importCount = 0;
@@ -111,22 +115,45 @@ public class MaterialService
             string subTypeName = row.Cell(2).GetValue<string>().Trim();
             string machineName = row.Cell(3).GetValue<string>().Trim();
             string projectName = row.Cell(4).GetValue<string>().Trim();
+            string lineName = row.Cell(5).GetValue<string>().Trim();
 
-            if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(subTypeName) || string.IsNullOrEmpty(projectName))
+            if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(subTypeName) ||
+                string.IsNullOrEmpty(projectName) || string.IsNullOrEmpty(lineName))
                 continue;
 
-            var project = projects.FirstOrDefault(p => p.Name.Equals(projectName, StringComparison.OrdinalIgnoreCase));
+            // Find or create Line
+            var line = lines.FirstOrDefault(l => l.Name.Equals(lineName, StringComparison.OrdinalIgnoreCase));
+            if (line == null)
+            {
+                line = new Line { Name = lineName };
+                db.Lines.Add(line);
+                await db.SaveChangesAsync();
+                lines.Add(line);
+            }
+
+            // Find or create Project (under the Line)
+            var project = projects.FirstOrDefault(p =>
+                p.Name.Equals(projectName, StringComparison.OrdinalIgnoreCase) && p.LineId == line.Id);
             if (project == null)
             {
-                project = new Project { Name = projectName };
+                project = new Project { Name = projectName, LineId = line.Id };
                 db.Projects.Add(project);
                 await db.SaveChangesAsync();
                 projects.Add(project);
             }
 
-            var eq = equipments.FirstOrDefault(e => e.EquipmentId.Equals(machineName, StringComparison.OrdinalIgnoreCase));
-            int eqId = eq?.Id ?? equipments.FirstOrDefault()?.Id ?? 0;
+            // Find or create Equipment
+            var eq = equipments.FirstOrDefault(e =>
+                e.EquipmentId.Equals(machineName, StringComparison.OrdinalIgnoreCase));
+            if (eq == null)
+            {
+                eq = new Equipment { EquipmentId = machineName, ServerIp = "127.0.0.1", ServerPort = 2001 };
+                db.Equipments.Add(eq);
+                await db.SaveChangesAsync();
+                equipments.Add(eq);
+            }
 
+            // Find or create MaterialType
             var type = await db.MaterialTypes
                 .FirstOrDefaultAsync(t => t.ProjectId == project.Id && t.TypeName == typeName);
             if (type == null)
@@ -136,6 +163,7 @@ public class MaterialService
                 await db.SaveChangesAsync();
             }
 
+            // Add SubType if not exists
             bool exists = await db.MaterialSubTypes
                 .AnyAsync(s => s.MaterialTypeId == type.Id && s.SubTypeName == subTypeName);
             if (!exists)
@@ -144,7 +172,7 @@ public class MaterialService
                 {
                     MaterialTypeId = type.Id,
                     SubTypeName = subTypeName,
-                    EquipmentId = eqId
+                    EquipmentId = eq.Id
                 });
                 importCount++;
             }

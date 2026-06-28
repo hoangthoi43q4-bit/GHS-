@@ -3,27 +3,58 @@
 @inject MaterialService MaterialService
 @inject ProjectService ProjectService
 @inject DeviceService DeviceService
+@inject LineService LineService
 
 <PageTitle>物料配置 — GHP HandShake Web</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">物料配置</MudText>
 
 <MudGrid>
-    <MudItem xs="12" md="6">
+    @* -- Line Management -- *@
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-3">线体管理</MudText>
+            <MudGrid>
+                <MudItem xs="8">
+                    <MudTextField @bind-Value="_newLineName" Label="线体名称" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="4" Class="d-flex align-end">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddLineAsync">添加</MudButton>
+                </MudItem>
+            </MudGrid>
+            <MudList Class="mt-2" T="string">
+                @foreach (var l in _lines)
+                {
+                    <MudListItem Text="@l.Name" Icon="@Icons.Material.Filled.AccountTree" T="string">
+                        <ChildContent>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           OnClick="() => DeleteLineAsync(l)" />
+                        </ChildContent>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    </MudItem>
+
+    @* -- Project Management -- *@
+    <MudItem xs="12" md="4">
         <MudPaper Class="pa-4" Elevation="1">
             <MudText Typo="Typo.h6" Class="mb-3">项目管理</MudText>
-            <MudGrid>
+            <MudSelect @bind-Value="_selectedLineForProject" Label="所属线体" Variant="Variant.Outlined" T="string">
+                @foreach (var l in _lines) { <MudSelectItem Value="@l.Name">@l.Name</MudSelectItem> }
+            </MudSelect>
+            <MudGrid Class="mt-2">
                 <MudItem xs="8">
                     <MudTextField @bind-Value="_newProjectName" Label="项目名称" Variant="Variant.Outlined" />
                 </MudItem>
                 <MudItem xs="4" Class="d-flex align-end">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProjectAsync">添加项目</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProjectAsync">添加</MudButton>
                 </MudItem>
             </MudGrid>
             <MudList Class="mt-2" T="string">
-                @foreach (var p in _projects)
+                @foreach (var p in _projects.Where(p => string.IsNullOrEmpty(_selectedLineForProject) || p.LineName == _selectedLineForProject))
                 {
-                    <MudListItem Text="@p.Name" Icon="@Icons.Material.Filled.Folder" T="string">
+                    <MudListItem Text="@($"[{p.LineName}] {p.Name}")" Icon="@Icons.Material.Filled.Folder" T="string">
                         <ChildContent>
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                            OnClick="() => DeleteProjectAsync(p)" />
@@ -34,11 +65,15 @@
         </MudPaper>
     </MudItem>
 
-    <MudItem xs="12" md="6">
+    @* -- Add Material Type + SubType -- *@
+    <MudItem xs="12" md="4">
         <MudPaper Class="pa-4" Elevation="1">
             <MudText Typo="Typo.h6" Class="mb-3">添加物料类型 + 子类型</MudText>
             <MudSelect @bind-Value="_selectedProjectAdd" Label="所属项目" Variant="Variant.Outlined" Class="mb-3" T="string">
-                @foreach (var p in _projects) { <MudSelectItem Value="@p.Name">@p.Name</MudSelectItem> }
+                @foreach (var p in _projects.OrderBy(p => p.LineName).ThenBy(p => p.Name))
+                {
+                    <MudSelectItem Value="@p.Name">[@p.LineName] @p.Name</MudSelectItem>
+                }
             </MudSelect>
             <MudTextField @bind-Value="_newTypeName" Label="类型名 (Pos 数字)" Variant="Variant.Outlined" Class="mb-3" />
             <MudTextField @bind-Value="_newSubTypeName" Label="子类名 (物料号)" Variant="Variant.Outlined" Class="mb-3" />
@@ -49,21 +84,37 @@
         </MudPaper>
     </MudItem>
 
+    @* -- Material List with Line + Project filter -- *@
     <MudItem xs="12">
         <MudPaper Class="pa-4" Elevation="1">
             <MudText Typo="Typo.h6" Class="mb-3">
-                物料列表 (@_selectedProjectFilter)
-                <MudButton Variant="Variant.Outlined" Size="Size.Small" Class="ml-4" StartIcon="@Icons.Material.Filled.FileUpload"
-                           OnClick="ImportExcelAsync">从 Excel 导入</MudButton>
+                物料列表
+                <InputFile OnChange="OnFileSelected" accept=".xlsx,.xlsm,.xlsb"
+                          Class="ml-4 MudButton-root MudButton-outlined MudButton-outlined-default MudButton-sizeSmall" />
             </MudText>
-            <MudSelect @bind-Value="_selectedProjectFilter" Label="筛选项目" Variant="Variant.Outlined" Class="mb-3" T="string">
-                @foreach (var p in _projects) { <MudSelectItem Value="@p.Name">@p.Name</MudSelectItem> }
-            </MudSelect>
+            <MudGrid>
+                <MudItem xs="6" md="3">
+                    <MudSelect @bind-Value="_selectedLineFilter" Label="筛选线体" Variant="Variant.Outlined" T="string"
+                               SelectedValuesChanged="OnFilterChanged">
+                        @foreach (var l in _lines) { <MudSelectItem Value="@l.Name">@l.Name</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudSelect @bind-Value="_selectedProjectFilter" Label="筛选项目" Variant="Variant.Outlined" T="string"
+                               SelectedValuesChanged="OnFilterChanged">
+                        @foreach (var p in _projects.Where(p => string.IsNullOrEmpty(_selectedLineFilter) || p.LineName == _selectedLineFilter))
+                        {
+                            <MudSelectItem Value="@p.Name">@p.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
             <MudDataGrid Items="@_materialSubs" ReadOnly="true" Hover="true" Striped="true" Dense="true">
                 <Columns>
                     <PropertyColumn Property="x => x.TypeName" Title="类型(Pos)" />
                     <PropertyColumn Property="x => x.SubTypeName" Title="物料号" />
                     <PropertyColumn Property="x => x.AssociatedMachineName" Title="关联设备" />
+                    <PropertyColumn Property="x => x.ProjectName" Title="项目" />
                     <TemplateColumn Title="操作" CellClass="text-center">
                         <CellTemplate>
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
@@ -76,24 +127,31 @@
     </MudItem>
 </MudGrid>
 
-<InputFile Type="InputFileType" OnChange="OnFileSelected" style="display:none" id="excelInput" accept=".xlsx,.xlsm,.xlsb" />
-
 @code {
+    private List<Line> _lines = new();
     private List<Project> _projects = new();
     private List<Equipment> _equipments = new();
     private List<MaterialSubTypeEntity> _materialSubs = new();
+    private string _newLineName = "";
     private string _newProjectName = "";
+    private string _selectedLineForProject = "";
+    private string _selectedLineFilter = "";
     private string _selectedProjectAdd = "";
     private string _selectedProjectFilter = "";
     private string _newTypeName = "";
     private string _newSubTypeName = "";
     private string _selectedEquipment = "";
-    private InputFile? _excelInput;
 
     protected override async Task OnInitializedAsync()
     {
+        _lines = await LineService.GetAllAsync();
         _projects = await ProjectService.GetAllAsync();
         _equipments = await DeviceService.GetAllAsync();
+        if (_lines.Any())
+        {
+            _selectedLineForProject = _lines.First().Name;
+            _selectedLineFilter = _lines.First().Name;
+        }
         if (_projects.Any())
         {
             _selectedProjectAdd = _projects.First().Name;
@@ -102,10 +160,28 @@
         await RefreshMaterialListAsync();
     }
 
+    private async Task AddLineAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newLineName)) return;
+        await LineService.AddAsync(_newLineName);
+        _newLineName = "";
+        _lines = await LineService.GetAllAsync();
+    }
+
+    private async Task DeleteLineAsync(Line l)
+    {
+        await LineService.DeleteAsync(l.Id);
+        _lines = await LineService.GetAllAsync();
+        _projects = await ProjectService.GetAllAsync();
+    }
+
     private async Task AddProjectAsync()
     {
-        if (string.IsNullOrWhiteSpace(_newProjectName)) return;
-        await ProjectService.AddAsync(_newProjectName);
+        if (string.IsNullOrWhiteSpace(_newProjectName) || string.IsNullOrWhiteSpace(_selectedLineForProject)) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var line = await db.Lines.FirstOrDefaultAsync(l => l.Name == _selectedLineForProject);
+        if (line == null) return;
+        await ProjectService.AddAsync(_newProjectName, line.Id);
         _newProjectName = "";
         _projects = await ProjectService.GetAllAsync();
     }
@@ -154,13 +230,12 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         var project = await db.Projects.FirstOrDefaultAsync(p => p.Name == _selectedProjectFilter);
         if (project == null) { _materialSubs.Clear(); return; }
-        _materialSubs = await MaterialService.GetSubTypesWithInfoAsync(project.Id);
+        _materialSubs = await MaterialService.GetSubTypesWithInfoAsync(0, project.Id);
     }
 
-    private async Task ImportExcelAsync()
+    private async Task OnFilterChanged(IEnumerable<string> values)
     {
-        // Trigger file input via JS (simplified: use a direct approach)
-        // For now, implement as a dialog-prompted flow
+        await RefreshMaterialListAsync();
     }
 
     private async Task OnFileSelected(InputFileChangeEventArgs e)
@@ -170,7 +245,8 @@
         {
             await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
             int count = await MaterialService.ImportFromExcelAsync(stream);
-            // Snackbar notification would go here
+            _lines = await LineService.GetAllAsync();
+            _projects = await ProjectService.GetAllAsync();
             await RefreshMaterialListAsync();
         }
     }

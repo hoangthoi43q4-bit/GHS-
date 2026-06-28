@@ -16,15 +16,26 @@
     <MudItem xs="12">
         <MudPaper Class="pa-4" Elevation="1">
             <MudGrid>
-                <MudItem xs="12" md="5">
+                <MudItem xs="12" md="4">
                     <MudTextField @bind-Value="_scanInput" Label="物料标签 (Scan Label)"
                                   Variant="Variant.Outlined" Immediate="true"
                                   OnKeyUp="OnScanKeyUp" AdornmentColor="Color.Primary" />
                 </MudItem>
-                <MudItem xs="6" md="3">
+                <MudItem xs="6" md="2">
+                    <MudSelect @bind-Value="_selectedLine" Label="线体"
+                               Variant="Variant.Outlined" T="string"
+                               SelectedValuesChanged="OnLineChanged">
+                        @foreach (var l in _lineNames)
+                        {
+                            <MudSelectItem Value="@l">@l</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" md="2">
                     <MudSelect @bind-Value="_selectedProject" Label="项目"
-                               Variant="Variant.Outlined" T="string">
-                        @foreach (var p in _projectNames)
+                               Variant="Variant.Outlined" T="string"
+                               SelectedValuesChanged="OnProjectChanged">
+                        @foreach (var p in _filteredProjects)
                         {
                             <MudSelectItem Value="@p">@p</MudSelectItem>
                         }
@@ -35,7 +46,7 @@
                         匹配设备: <strong>@_matchedEquipment</strong>
                     </MudText>
                 </MudItem>
-                <MudItem xs="12" md="1">
+                <MudItem xs="6" md="1">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                OnClick="SendMessageAsync" FullWidth="true">
                         发送
@@ -81,14 +92,18 @@
 
 @code {
     private string _scanInput = "";
+    private string _selectedLine = "";
     private string _selectedProject = "";
+    private string _selectedLineName = "";
     private string _matchedEquipment = "—";
-    private List<string> _projectNames = new();
+    private List<string> _lineNames = new();
+    private List<string> _filteredProjects = new();
     private List<string> _logs = new();
     private List<ProjectMaterialStatusItem> _materialStatuses = new();
     private HubConnection? _hubConnection;
     private List<MaterialTypeInfo> _materialConfig = new();
     private List<Equipment> _equipments = new();
+    private Dictionary<string, int> _projectIdMap = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -99,12 +114,12 @@
     private async Task LoadDataAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        _projectNames = await db.Projects.Select(p => p.Name).OrderBy(p => p).ToListAsync();
+        _lineNames = await db.Lines.Select(l => l.Name).OrderBy(l => l).ToListAsync();
         _equipments = await db.Equipments.OrderBy(e => e.EquipmentId).ToListAsync();
+        _projectIdMap = await db.Projects.ToDictionaryAsync(p => p.Name, p => p.Id);
 
         _materialConfig = new();
         var types = await db.MaterialTypes.OrderBy(t => t.ProjectId).ThenBy(t => t.TypeName).ToListAsync();
-        // Simplified: rebuild MaterialTypeInfo list
         var eqMap = _equipments.ToDictionary(e => e.Id, e => e.EquipmentId);
         foreach (var t in types)
         {
@@ -121,8 +136,41 @@
             });
         }
 
-        if (_projectNames.Any())
-            _selectedProject = _projectNames.First();
+        if (_lineNames.Any())
+        {
+            _selectedLine = _lineNames.First();
+            await FilterProjectsByLineAsync();
+        }
+    }
+
+    private async Task FilterProjectsByLineAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedLine)) { _filteredProjects.Clear(); return; }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var line = await db.Lines.FirstOrDefaultAsync(l => l.Name == _selectedLine);
+        if (line == null) { _filteredProjects.Clear(); return; }
+        _selectedLineName = line.Name;
+        _filteredProjects = await db.Projects
+            .Where(p => p.LineId == line.Id)
+            .OrderBy(p => p.Name)
+            .Select(p => p.Name)
+            .ToListAsync();
+        if (_filteredProjects.Any())
+            _selectedProject = _filteredProjects.First();
+        else
+            _selectedProject = "";
+        await RebuildStatusPanelAsync();
+    }
+
+    private async Task OnLineChanged(IEnumerable<string> values)
+    {
+        _selectedLine = values.FirstOrDefault() ?? "";
+        await FilterProjectsByLineAsync();
+    }
+
+    private async Task OnProjectChanged(IEnumerable<string> values)
+    {
+        _selectedProject = values.FirstOrDefault() ?? "";
         await RebuildStatusPanelAsync();
     }
 
@@ -146,9 +194,7 @@
     private async Task OnScanKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
-        {
             await SendMessageAsync();
-        }
     }
 
     private async Task SendMessageAsync()
@@ -165,7 +211,6 @@
 
         AddLog($"接收到物料号: {matLabel}。正在查找...");
 
-        // Find matching material and equipment
         var matched = FindMaterial(matLabel);
         if (matched == null)
         {
@@ -195,6 +240,7 @@
         var entry = new UploadHistoryEntry
         {
             Timestamp = DateTime.UtcNow,
+            LineName = _selectedLineName,
             ProjectName = _selectedProject,
             TypeName = matched.TypeName,
             SubTypeName = matLabel,
@@ -205,7 +251,7 @@
             IsAckSuccess = result.IsAckSuccess
         };
         await HistoryService.AddEntryAsync(entry);
-        AddLog($"[上料记录] Pos={matched.TypeName}, 物料={matLabel}, 结果={(result.IsAckSuccess ? "ACK成功" : "未成功")}");
+        AddLog($"[上料记录] 线体={_selectedLineName}, 项目={_selectedProject}, Pos={matched.TypeName}, 物料={matLabel}, 结果={(result.IsAckSuccess ? "ACK成功" : "未成功")}");
 
         _scanInput = "";
     }
