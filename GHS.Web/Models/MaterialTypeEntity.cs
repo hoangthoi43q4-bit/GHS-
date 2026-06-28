@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace GHS.Web.Models;
 
 public class MaterialTypeEntity
@@ -8,5 +10,6 @@ public class MaterialTypeEntity
     public int SortOrder { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public string ProjectName { get; set; } = string.Empty; // navigation helper
+    [NotMapped]
+    public string ProjectName { get; set; } = string.Empty;
 }

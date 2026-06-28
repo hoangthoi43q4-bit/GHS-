@@ -24,10 +24,10 @@
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddLineAsync">添加</MudButton>
                 </MudItem>
             </MudGrid>
-            <MudList Class="mt-2" T="string">
+            <MudList Class="mt-2" T="Line">
                 @foreach (var l in _lines)
                 {
-                    <MudListItem Text="@l.Name" Icon="@Icons.Material.Filled.AccountTree" T="string">
+                    <MudListItem T="Line" Text="@l.Name" Icon="@Icons.Material.Filled.AccountTree">
                         <ChildContent>
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                            OnClick="() => DeleteLineAsync(l)" />
@@ -53,10 +53,10 @@
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProjectAsync">添加</MudButton>
                 </MudItem>
             </MudGrid>
-            <MudList Class="mt-2" T="string">
+            <MudList Class="mt-2" T="Project">
                 @foreach (var p in _projects.Where(p => string.IsNullOrEmpty(_selectedLineForProject) || p.LineName == _selectedLineForProject))
                 {
-                    <MudListItem Text="@($"[{p.LineName}] {p.Name}")" Icon="@Icons.Material.Filled.Folder" T="string">
+                    <MudListItem T="Project" Text="@($"[{p.LineName}] {p.Name}")" Icon="@Icons.Material.Filled.Folder">
                         <ChildContent>
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                            OnClick="() => DeleteProjectAsync(p)" />
@@ -97,14 +97,12 @@
             </MudText>
             <MudGrid>
                 <MudItem xs="6" md="3">
-                    <MudSelect @bind-Value="_selectedLineFilter" Label="筛选线体" Variant="Variant.Outlined" T="string"
-                               SelectedValuesChanged="OnFilterChanged">
+                    <MudSelect @bind-Value="_selectedLineFilter" Label="筛选线体" Variant="Variant.Outlined" T="string">
                         @foreach (var l in _lines) { <MudSelectItem Value="@l.Name">@l.Name</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="6" md="3">
-                    <MudSelect @bind-Value="_selectedProjectFilter" Label="筛选项目" Variant="Variant.Outlined" T="string"
-                               SelectedValuesChanged="OnFilterChanged">
+                    <MudSelect @bind-Value="_selectedProjectFilter" Label="筛选项目" Variant="Variant.Outlined" T="string">
                         @foreach (var p in _projects.Where(p => string.IsNullOrEmpty(_selectedLineFilter) || p.LineName == _selectedLineFilter))
                         {
                             <MudSelectItem Value="@p.Name">@p.Name</MudSelectItem>
@@ -170,6 +168,9 @@
         await LineService.AddAsync(_newLineName);
         _newLineName = "";
         _lines = await LineService.GetAllAsync();
+        if (!_lines.Any(l => l.Name == _selectedLineForProject))
+            _selectedLineForProject = _lines.FirstOrDefault()?.Name ?? "";
+        StateHasChanged();
     }
 
     private async Task DeleteLineAsync(Line l)
@@ -177,6 +178,9 @@
         await LineService.DeleteAsync(l.Id);
         _lines = await LineService.GetAllAsync();
         _projects = await ProjectService.GetAllAsync();
+        if (!_lines.Any(x => x.Name == _selectedLineForProject))
+            _selectedLineForProject = _lines.FirstOrDefault()?.Name ?? "";
+        StateHasChanged();
     }
 
     private async Task AddProjectAsync()
@@ -188,12 +192,14 @@
         await ProjectService.AddAsync(_newProjectName, line.Id);
         _newProjectName = "";
         _projects = await ProjectService.GetAllAsync();
+        StateHasChanged();
     }
 
     private async Task DeleteProjectAsync(Project p)
     {
         await ProjectService.DeleteAsync(p.Id);
         _projects = await ProjectService.GetAllAsync();
+        StateHasChanged();
     }
 
     private async Task AddSubTypeAsync()
@@ -237,11 +243,6 @@
         _materialSubs = await MaterialService.GetSubTypesWithInfoAsync(0, project.Id);
     }
 
-    private async Task OnFilterChanged(IEnumerable<string> values)
-    {
-        await RefreshMaterialListAsync();
-    }
-
     private async Task TriggerExcelUpload()
     {
         if (_excelInputRef?.Element != null)
@@ -257,12 +258,26 @@
         {
             try
             {
-                await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-                int count = await MaterialService.ImportFromExcelAsync(stream);
+                await using var fileStream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                var ms = new MemoryStream();
+                await fileStream.CopyToAsync(ms);
+                ms.Position = 0;
+                int count = await MaterialService.ImportFromExcelAsync(ms);
                 _lines = await LineService.GetAllAsync();
                 _projects = await ProjectService.GetAllAsync();
                 _equipments = await DeviceService.GetAllAsync();
+                if (_lines.Any())
+                {
+                    _selectedLineForProject = _lines.First().Name;
+                    _selectedLineFilter = _lines.First().Name;
+                }
+                if (_projects.Any())
+                {
+                    _selectedProjectAdd = _projects.First().Name;
+                    _selectedProjectFilter = _projects.First().Name;
+                }
                 await RefreshMaterialListAsync();
+                StateHasChanged();
                 Snackbar.Add($"成功导入 {count} 条物料记录！", Severity.Success);
             }
             catch (Exception ex)

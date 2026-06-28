@@ -16,32 +16,23 @@ public class ProjectService
     public async Task<List<Project>> GetAllAsync()
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
-        return await db.Projects
-            .OrderBy(p => p.Name)
-            .Select(p => new Project
-            {
-                Id = p.Id,
-                Name = p.Name,
-                LineId = p.LineId,
-                LineName = db.Lines.Where(l => l.Id == p.LineId).Select(l => l.Name).FirstOrDefault() ?? ""
-            })
-            .ToListAsync();
+        var projects = await db.Projects.OrderBy(p => p.Name).ToListAsync();
+        var lineIds = projects.Select(p => p.LineId).Distinct().ToList();
+        var lines = await db.Lines.Where(l => lineIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Name);
+        foreach (var p in projects)
+            p.LineName = lines.GetValueOrDefault(p.LineId, "");
+        return projects;
     }
 
     public async Task<List<Project>> GetByLineAsync(int lineId)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
-        return await db.Projects
-            .Where(p => p.LineId == lineId)
-            .OrderBy(p => p.Name)
-            .Select(p => new Project
-            {
-                Id = p.Id,
-                Name = p.Name,
-                LineId = p.LineId,
-                LineName = db.Lines.Where(l => l.Id == p.LineId).Select(l => l.Name).FirstOrDefault() ?? ""
-            })
-            .ToListAsync();
+        var projects = await db.Projects.Where(p => p.LineId == lineId).OrderBy(p => p.Name).ToListAsync();
+        var line = await db.Lines.FindAsync(lineId);
+        var lineName = line?.Name ?? "";
+        foreach (var p in projects)
+            p.LineName = lineName;
+        return projects;
     }
 
     public async Task<Project> AddAsync(string name, int lineId)

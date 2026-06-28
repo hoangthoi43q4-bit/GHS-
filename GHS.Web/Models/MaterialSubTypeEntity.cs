@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace GHS.Web.Models;
 
 public class MaterialSubTypeEntity
@@ -8,8 +10,7 @@ public class MaterialSubTypeEntity
     public int EquipmentId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    // Navigation helpers
-    public string TypeName { get; set; } = string.Empty;
-    public string ProjectName { get; set; } = string.Empty;
-    public string AssociatedMachineName { get; set; } = string.Empty;
+    [NotMapped] public string TypeName { get; set; } = string.Empty;
+    [NotMapped] public string ProjectName { get; set; } = string.Empty;
+    [NotMapped] public string AssociatedMachineName { get; set; } = string.Empty;
 }
