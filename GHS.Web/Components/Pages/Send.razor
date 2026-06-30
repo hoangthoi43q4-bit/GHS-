@@ -202,6 +202,9 @@
     private async Task SendMessageAsync()
     {
         var message = _scanInput.Trim();
+        _scanInput = "";        // 立即清除，无论后续成功失败
+        StateHasChanged();
+
         if (string.IsNullOrEmpty(message)) return;
 
         var matLabel = StringProcessor.FindMaterial(message);
@@ -256,9 +259,8 @@
         };
         await HistoryService.AddEntryAsync(entry);
         AddLog($"[上料记录] 线体={_selectedLineName}, 项目={_selectedProject}, Pos={matched.TypeName}, 物料={matLabel}, 结果={(result.IsAckSuccess ? "ACK成功" : "未成功")}");
-
-        _scanInput = "";
     }
+
 
     private MaterialSubTypeInfo? FindMaterial(string matLabel)
     {
