@@ -37,7 +37,8 @@
                                SelectedValuesChanged="OnProjectChanged">
                         @foreach (var p in _filteredProjects)
                         {
-                            <MudSelectItem Value="@p">@p</MudSelectItem>
+                            var displayName = p.Contains(":") ? p.Split(':')[1] : p;
+                            <MudSelectItem Value="@p">@displayName</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -103,7 +104,7 @@
     private HubConnection? _hubConnection;
     private List<MaterialTypeInfo> _materialConfig = new();
     private List<Equipment> _equipments = new();
-    private Dictionary<string, int> _projectIdMap = new();
+    private Dictionary<int, string> _projectIdMap = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,7 +117,7 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         _lineNames = await db.Lines.Select(l => l.Name).OrderBy(l => l).ToListAsync();
         _equipments = await db.Equipments.OrderBy(e => e.EquipmentId).ToListAsync();
-        _projectIdMap = await db.Projects.ToDictionaryAsync(p => p.Name, p => p.Id);
+        _projectIdMap = await db.Projects.ToDictionaryAsync(p => p.Id, p => p.Name);
 
         _materialConfig = new();
         var types = await db.MaterialTypes.OrderBy(t => t.ProjectId).ThenBy(t => t.TypeName).ToListAsync();
@@ -151,10 +152,11 @@
         if (line == null) { _filteredProjects.Clear(); return; }
         _selectedLineName = line.Name;
         _filteredProjects = await db.Projects
-            .Where(p => p.LineId == line.Id)
-            .OrderBy(p => p.Name)
-            .Select(p => p.Name)
-            .ToListAsync();
+        .Where(p => p.LineId == line.Id)
+        .OrderBy(p => p.Name)
+        .Select(p => p.Id + ":" + p.Name)   // "42:Nissan RA"
+        .ToListAsync();
+
         if (_filteredProjects.Any())
             _selectedProject = _filteredProjects.First();
         else
@@ -241,7 +243,9 @@
         {
             Timestamp = DateTime.UtcNow,
             LineName = _selectedLineName,
-            ProjectName = _selectedProject,
+            ProjectName = _selectedProject.Contains(":")
+                ? _selectedProject.Split(':')[1]
+                : _selectedProject,
             TypeName = matched.TypeName,
             SubTypeName = matLabel,
             EquipmentId = equipment.EquipmentId,
@@ -271,8 +275,13 @@
         _materialStatuses.Clear();
         if (string.IsNullOrWhiteSpace(_selectedProject)) return;
 
+        // 从 "42:Nissan RA" 中取出 Id
+        var projectId = _selectedProject.Contains(":")
+            ? int.Parse(_selectedProject.Split(':')[0])
+            : -1;
+
         await using var db = await DbFactory.CreateDbContextAsync();
-        var project = await db.Projects.FirstOrDefaultAsync(p => p.Name == _selectedProject);
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
         if (project == null) return;
 
         var subs = await db.MaterialSubTypes
