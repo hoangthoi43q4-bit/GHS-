@@ -8,6 +8,7 @@
 @inject UploadHistoryService HistoryService
 @inject IHubContext<LogHub> HubContext
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @implements IAsyncDisposable
 
 <PageTitle>发送物料 — GHP HandShake Web</PageTitle>
@@ -17,7 +18,7 @@
         <MudPaper Class="pa-4" Elevation="1">
             <MudGrid>
                 <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="_scanInput" Label="物料标签 (Scan Label)"
+                    <MudTextField @ref="_scanFieldRef" @bind-Value="_scanInput" Label="物料标签 (Scan Label)"
                                   Variant="Variant.Outlined" Immediate="true"
                                   OnKeyUp="OnScanKeyUp" AdornmentColor="Color.Primary" />
                 </MudItem>
@@ -97,6 +98,7 @@
     private string _selectedProject = "";
     private string _selectedLineName = "";
     private string _matchedEquipment = "—";
+    private MudTextField<string>? _scanFieldRef;
     private List<string> _lineNames = new();
     private List<string> _filteredProjects = new();
     private List<string> _logs = new();
@@ -196,16 +198,27 @@
     private async Task OnScanKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
-            await SendMessageAsync();
+        {
+            var message = _scanInput.Trim();
+            _scanInput = "";
+            await JS.InvokeVoidAsync("clearActiveInput");
+            StateHasChanged();
+            if (!string.IsNullOrEmpty(message))
+                await ProcessMessageAsync(message);
+        }
     }
 
     private async Task SendMessageAsync()
     {
         var message = _scanInput.Trim();
-        _scanInput = "";        // 立即清除，无论后续成功失败
+        _scanInput = "";
         StateHasChanged();
-
         if (string.IsNullOrEmpty(message)) return;
+        await ProcessMessageAsync(message);
+    }
+
+    private async Task ProcessMessageAsync(string message)
+    {
 
         var matLabel = StringProcessor.FindMaterial(message);
         if (string.IsNullOrEmpty(matLabel))

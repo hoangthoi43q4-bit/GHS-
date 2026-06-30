@@ -36,6 +36,17 @@
         window.clickElement = (element) => {
             element.click();
         };
+        window.clearActiveInput = () => {
+            var el = document.activeElement;
+            if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+                // 保存光标位置的目标值后再清空
+                var nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype, 'value').set;
+                nativeInputValueSetter.call(el, '');
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        };
     </script>
 </body>
 </html>
