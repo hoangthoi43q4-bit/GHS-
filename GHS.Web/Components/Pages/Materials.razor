@@ -94,13 +94,33 @@
                            OnClick="TriggerExcelUpload">从 Excel 导入</MudButton>
             </MudText>
             <MudGrid>
-                <MudItem xs="6" md="3">
+                @* <MudItem xs="6" md="3">
                     <MudSelect @bind-Value="_selectedLineFilter" Label="筛选线体" Variant="Variant.Outlined" T="string">
                         @foreach (var l in _lines) { <MudSelectItem Value="@l.Name">@l.Name</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="6" md="3">
                     <MudSelect @bind-Value="_selectedProjectFilter" Label="筛选项目" Variant="Variant.Outlined" T="string">
+                        @foreach (var p in _projects.Where(p => string.IsNullOrEmpty(_selectedLineFilter) || p.LineName == _selectedLineFilter))
+                        {
+                            <MudSelectItem Value="@p.Name">@p.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem> *@
+                <MudItem xs="6" md="3">
+                    <MudSelect Value="@_selectedLineFilter"
+                               ValueChanged="@((string v) => OnLineFilterChangedAsync(v))"
+                               Label="筛选线体" Variant="Variant.Outlined" T="string">
+                        @foreach (var l in _lines)
+                        {
+                            <MudSelectItem Value="@l.Name">@l.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudSelect Value="@_selectedProjectFilter"
+                               ValueChanged="@((string v) => OnProjectFilterChangedAsync(v))"
+                               Label="筛选项目" Variant="Variant.Outlined" T="string">
                         @foreach (var p in _projects.Where(p => string.IsNullOrEmpty(_selectedLineFilter) || p.LineName == _selectedLineFilter))
                         {
                             <MudSelectItem Value="@p.Name">@p.Name</MudSelectItem>
@@ -283,5 +303,24 @@
                 Snackbar.Add($"导入失败: {ex.Message}", Severity.Error);
             }
         }
+    }
+
+    // 新增：线体筛选变更时，重置项目筛选并刷新
+    private async Task OnLineFilterChangedAsync(string value)
+    {
+        _selectedLineFilter = value;
+        // 自动选中该线体下的第一个项目
+        var firstProject = _projects
+            .Where(p => p.LineName == _selectedLineFilter)
+            .FirstOrDefault();
+        _selectedProjectFilter = firstProject?.Name ?? "";
+        await RefreshMaterialListAsync();
+    }
+
+    // 新增：项目筛选变更时，直接刷新物料列表
+    private async Task OnProjectFilterChangedAsync(string value)
+    {
+        _selectedProjectFilter = value;
+        await RefreshMaterialListAsync();
     }
 }
