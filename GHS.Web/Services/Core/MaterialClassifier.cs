@@ -36,6 +36,7 @@ public class MaterialClassifier
 /// </summary>
 public class MaterialTypeInfo
 {
+    public int ProjectId { get; set; }
     public string TypeName { get; set; } = string.Empty;
     public List<MaterialSubTypeInfo> SubTypes { get; set; } = new();
 }

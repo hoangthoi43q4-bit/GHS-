@@ -129,6 +129,7 @@
             var subs = await db.MaterialSubTypes.Where(s => s.MaterialTypeId == t.Id).ToListAsync();
             _materialConfig.Add(new MaterialTypeInfo
             {
+                ProjectId = t.ProjectId,
                 TypeName = t.TypeName,
                 SubTypes = subs.Select(s => new MaterialSubTypeInfo
                 {
@@ -277,9 +278,16 @@
 
     private MaterialSubTypeInfo? FindMaterial(string matLabel)
     {
+        var projectId = _selectedProject.Contains(":")
+            ? int.Parse(_selectedProject.Split(':')[0])
+            : -1;
+
         foreach (var type in _materialConfig)
         {
-            var sub = type.SubTypes.FirstOrDefault(s => s.SubTypeName.Contains(matLabel));
+            if (type.ProjectId != projectId) continue;
+            var sub = type.SubTypes.FirstOrDefault(s =>
+                s.SubTypeName.Equals(matLabel, StringComparison.OrdinalIgnoreCase) ||
+                s.SubTypeName.Contains(matLabel, StringComparison.OrdinalIgnoreCase));
             if (sub != null) return sub;
         }
         return null;
