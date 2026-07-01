@@ -337,21 +337,22 @@
         if (_logs.Count > 500) _logs.RemoveAt(0);
     }
 
-    private static Color GetStatusColor(string status)
+    private static Color GetStatusColor(string status) => status switch
     {
-        if (status.Contains("成功")) return Color.Success;
-        if (status.Contains("未成功") || status.Contains("失败")) return Color.Error;
-        if (status.Contains("等待")) return Color.Warning;
-        return Color.Default;
-    }
+        var s when s.Contains("未成功") || s.Contains("失败") => Color.Error,   // 红 ❌
+        var s when s.Contains("成功") => Color.Success,  // 绿 ✅
+        var s when s.Contains("等待") => Color.Warning,  // 黄 ⏳
+        _ => Color.Default   // 灰 ○
+    };
 
-    private static string GetStatusIcon(string status)
+    private static string GetStatusIcon(string status) => status switch
     {
-        if (status.Contains("成功")) return Icons.Material.Filled.CheckCircle;
-        if (status.Contains("未成功") || status.Contains("失败")) return Icons.Material.Filled.Error;
-        if (status.Contains("等待")) return Icons.Material.Filled.HourglassTop;
-        return Icons.Material.Filled.RadioButtonUnchecked;
-    }
+        var s when s.Contains("未成功") || s.Contains("失败") => Icons.Material.Filled.Cancel,
+        var s when s.Contains("成功") => Icons.Material.Filled.CheckCircle,
+        var s when s.Contains("等待") => Icons.Material.Filled.HourglassTop,
+        _ => Icons.Material.Filled.RadioButtonUnchecked
+    };
+
 
     public async ValueTask DisposeAsync()
     {
