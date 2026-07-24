@@ -13,6 +13,8 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="MudBlazor" Version="8.6.0" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
+	<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.0" />
+
   </ItemGroup>
 
 </Project>

@@ -28,6 +28,7 @@ builder.Services.AddScoped<MaterialService>();
 builder.Services.AddScoped<UploadHistoryService>();
 builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<LogService>();
+builder.Host.UseWindowsService();
 
 // Core Services
 builder.Services.AddSingleton<StringProcessor>();
