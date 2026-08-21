@@ -62,7 +62,7 @@
         <MudPaper Class="pa-4" Elevation="1">
             <MudText Typo="Typo.h6" Class="mb-4">物料状态面板</MudText>
             <MudDataGrid Items="@_materialStatuses" ReadOnly="true" Hover="true"
-                         Striped="true" Dense="true" Height="400px">
+                         Striped="true" Dense="true" Height="calc(100vh - 260px)">
                 <Columns>
                     <TemplateColumn Title="状态" CellClass="text-center">
                         <CellTemplate>
@@ -82,7 +82,7 @@
     <MudItem xs="12" md="6">
         <MudPaper Class="pa-4" Elevation="1">
             <MudText Typo="Typo.h6" Class="mb-4">实时通信日志</MudText>
-            <MudPaper Class="pa-2" Style="height:400px;overflow-y:auto;background:#1E293B;color:#E2E8F0;font-family:monospace;font-size:13px;">
+            <MudPaper Class="pa-2" Style="height:calc(100vh - 260px);overflow-y:auto;background:#1E293B;color:#E2E8F0;font-family:monospace;font-size:13px;">
                 @foreach (var log in _logs)
                 {
                     <div style="padding:2px 0;border-bottom:1px solid #334155;">@log</div>
