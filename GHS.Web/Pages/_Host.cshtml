@@ -47,6 +47,25 @@
                 el.dispatchEvent(new Event('change', { bubbles: true }));
             }
         };
+        window.playBeep = (type) => {
+            try {
+                var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                var play = (freq, start, dur) => {
+                    var o = ctx.createOscillator();
+                    var g = ctx.createGain();
+                    o.connect(g); g.connect(ctx.destination);
+                    o.frequency.value = freq;
+                    o.type = 'sine';
+                    g.gain.setValueAtTime(0.001, ctx.currentTime + start);
+                    g.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + start + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+                    o.start(ctx.currentTime + start);
+                    o.stop(ctx.currentTime + start + dur);
+                };
+                if (type === 'success') { play(880, 0, 0.15); play(1175, 0.15, 0.2); }
+                else { play(220, 0, 0.4); }
+            } catch (e) { console.error('playBeep error', e); }
+        };
     </script>
 </body>
 </html>

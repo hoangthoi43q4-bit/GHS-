@@ -32,7 +32,7 @@
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="6" md="2">
+                <MudItem xs="6" md="3">
                     <MudSelect @bind-Value="_selectedProject" Label="项目"
                                Variant="Variant.Outlined" T="string"
                                SelectedValuesChanged="OnProjectChanged">
@@ -43,7 +43,7 @@
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="6" md="3">
+                <MudItem xs="6" md="2">
                     <MudText Class="mt-2">
                         匹配设备: <strong>@_matchedEquipment</strong>
                     </MudText>
@@ -255,6 +255,7 @@
             equipment.Id, equipment.EquipmentId, equipment.ServerIp, equipment.ServerPort, command);
 
         SetMaterialStatus(matLabel, result.IsAckSuccess ? "上传成功" : "上传未成功");
+        await JS.InvokeVoidAsync("playBeep", result.IsAckSuccess ? "success" : "error");
 
         var entry = new UploadHistoryEntry
         {
