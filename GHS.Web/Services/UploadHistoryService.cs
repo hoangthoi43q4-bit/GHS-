@@ -15,10 +15,29 @@ public class UploadHistoryService
 
     public async Task AddEntryAsync(UploadHistoryEntry entry)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync();
-        entry.CreatedAt = DateTime.UtcNow;
-        db.UploadHistory.Add(entry);
-        await db.SaveChangesAsync();
+        // 清洗字符串字段中的空字节(0x00)：PostgreSQL text 不允许存 0x00，否则抛 22021 异常
+        static string? Clean(string? s) => s?.Replace("\0", "");
+        entry.ScanContent = Clean(entry.ScanContent);
+        entry.CommandSent = Clean(entry.CommandSent);
+        entry.Response = Clean(entry.Response);
+        entry.LineName = Clean(entry.LineName);
+        entry.ProjectName = Clean(entry.ProjectName);
+        entry.TypeName = Clean(entry.TypeName);
+        entry.SubTypeName = Clean(entry.SubTypeName);
+        entry.EquipmentId = Clean(entry.EquipmentId);
+
+        try
+        {
+            await using var db = await _dbFactory.CreateDbContextAsync();
+            entry.CreatedAt = DateTime.UtcNow;
+            db.UploadHistory.Add(entry);
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // 写历史失败不得崩掉页面（避免终止 Blazor circuit），仅记录
+            Console.WriteLine($"[UploadHistory] 写入失败: {ex.Message}");
+        }
     }
 
     public async Task<List<UploadHistoryGroupItem>> GetGroupedHistoryAsync(string? projectFilter)
