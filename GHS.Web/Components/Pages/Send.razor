@@ -220,11 +220,25 @@
 
     private async Task ProcessMessageAsync(string message)
     {
+        async Task LogFailAsync(string reason, string? subType = null)
+        {
+            await HistoryService.AddEntryAsync(new UploadHistoryEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                LineName = _selectedLineName,
+                ProjectName = _selectedProject.Contains(":") ? _selectedProject.Split(':')[1] : _selectedProject,
+                SubTypeName = subType,
+                ScanContent = message,
+                Response = reason,
+                IsAckSuccess = false
+            });
+        }
 
         var matLabel = StringProcessor.FindMaterial(message);
         if (string.IsNullOrEmpty(matLabel))
         {
             AddLog("发送内容中不包含物料信息！");
+            await LogFailAsync("发送内容中不包含物料信息");
             return;
         }
 
@@ -234,6 +248,7 @@
         if (matched == null)
         {
             AddLog($"[错误] 配置中未找到物料 '{matLabel}'。");
+            await LogFailAsync($"配置中未找到物料 '{matLabel}'", matLabel);
             return;
         }
 
@@ -241,6 +256,8 @@
         if (equipment == null)
         {
             AddLog($"[错误] 物料关联的设备 '{matched.AssociatedMachineName}' 不存在。");
+            await LogFailAsync($"物料关联的设备 '{matched.AssociatedMachineName}' 不存在", matLabel);
+
             return;
         }
 
