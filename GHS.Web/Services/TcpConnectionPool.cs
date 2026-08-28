@@ -87,7 +87,7 @@ public class TcpConnectionPool : IHostedService, IDisposable
             if (bytesRead > 0)
             {
                 result.Response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-                result.IsAckSuccess = result.Response.Contains("ACK", StringComparison.OrdinalIgnoreCase);
+                result.IsAckSuccess = result.Response.Contains("ACK");
                 await _hubContext.Clients.All.SendAsync("ReceiveLog",
                     $"响应: {result.Response}", ct);
             }
