@@ -265,7 +265,8 @@
         _matchedEquipment = equipment.EquipmentId;
         SetMaterialStatus(matLabel, "等待ACK");
 
-        int matPos = SelectMatPos.GetMatPos(matLabel, _materialConfig);
+        //int matPos = SelectMatPos.GetMatPos(matLabel, _materialConfig);
+        int matPos = int.TryParse(matched.TypeName, out var p) ? p : 0;
         string command = StringProcessor.GenerateLoadCommand(message, equipment.EquipmentId, matPos);
 
         var result = await TcpPool.SendCommandAsync(
@@ -306,7 +307,12 @@
             var sub = type.SubTypes.FirstOrDefault(s =>
                 s.SubTypeName.Equals(matLabel, StringComparison.OrdinalIgnoreCase) ||
                 s.SubTypeName.Contains(matLabel, StringComparison.OrdinalIgnoreCase));
-            if (sub != null) return sub;
+            if (sub != null)
+            {
+                sub.TypeName = type.TypeName; // 新增：把当前项目下该记录得POS 带出去
+                return sub;
+            }
+            
         }
         return null;
     }
