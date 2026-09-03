@@ -20,6 +20,9 @@
         <MudItem xs="6" md="2">
             <MudTextField @bind-Value="_editItem.Description" Label="描述" Variant="Variant.Outlined" />
         </MudItem>
+        <MudItem xs="12" md="10">
+            <MudTextField @bind-Value="_editItem.BufferXmlPath" Label="当前料 XML 路径 (UNC)" Variant="Variant.Outlined" Placeholder="\\10.103.32.58\D\...\LoadMaterialBufferPreserve.xml" />
+        </MudItem>
         <MudItem xs="12" md="2" Class="d-flex align-end">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Class="mr-2">保存</MudButton>
             <MudButton Variant="Variant.Outlined" OnClick="ResetEdit">取消</MudButton>
@@ -34,6 +37,7 @@
             <PropertyColumn Property="x => x.EquipmentId" Title="站位信息" />
             <PropertyColumn Property="x => x.ServerIp" Title="IP 地址" />
             <PropertyColumn Property="x => x.ServerPort" Title="端口" />
+            <PropertyColumn Property="x => x.BufferXmlPath" Title="XML 路径" />
             <PropertyColumn Property="x => x.Description" Title="描述" />
             <TemplateColumn Title="操作" CellClass="text-center">
                 <CellTemplate>
@@ -65,9 +69,9 @@
         _editItem.ServerPort = port;
 
         if (_isEditing && _editItem.Id > 0)
-            await DeviceService.UpdateAsync(_editItem.Id, _editItem.EquipmentId, _editItem.ServerIp, port, _editItem.Description);
+            await DeviceService.UpdateAsync(_editItem.Id, _editItem.EquipmentId, _editItem.ServerIp, port, _editItem.BufferXmlPath, _editItem.Description);
         else
-            await DeviceService.AddAsync(_editItem.EquipmentId, _editItem.ServerIp, port, _editItem.Description);
+            await DeviceService.AddAsync(_editItem.EquipmentId, _editItem.ServerIp, port, _editItem.BufferXmlPath, _editItem.Description);
 
         _equipments = await DeviceService.GetAllAsync();
         ResetEdit();
@@ -75,7 +79,7 @@
 
     private async Task EditAsync(Equipment eq)
     {
-        _editItem = new Equipment { Id = eq.Id, EquipmentId = eq.EquipmentId, ServerIp = eq.ServerIp, ServerPort = eq.ServerPort, Description = eq.Description };
+        _editItem = new Equipment { Id = eq.Id, EquipmentId = eq.EquipmentId, ServerIp = eq.ServerIp, ServerPort = eq.ServerPort, BufferXmlPath = eq.BufferXmlPath, Description = eq.Description };
         _portStr = eq.ServerPort.ToString();
         _isEditing = true;
     }

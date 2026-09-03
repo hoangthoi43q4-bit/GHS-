@@ -34,6 +34,7 @@ builder.Host.UseWindowsService();
 builder.Services.AddSingleton<StringProcessor>();
 builder.Services.AddSingleton<MaterialClassifier>();
 builder.Services.AddSingleton<SelectMatPos>();
+builder.Services.AddSingleton<BufferMaterialService>();
 
 // SignalR Hub for real-time communication logs
 builder.Services.AddSignalR();

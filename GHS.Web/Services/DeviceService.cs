@@ -25,7 +25,7 @@ public class DeviceService
         return await db.Equipments.FindAsync(id);
     }
 
-    public async Task<Equipment> AddAsync(string equipmentId, string serverIp, int serverPort, string? description)
+    public async Task<Equipment> AddAsync(string equipmentId, string serverIp, int serverPort, string? bufferXmlPath, string? description)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
         var eq = new Equipment
@@ -33,6 +33,7 @@ public class DeviceService
             EquipmentId = equipmentId.Trim(),
             ServerIp = serverIp.Trim(),
             ServerPort = serverPort,
+            BufferXmlPath = string.IsNullOrWhiteSpace(bufferXmlPath) ? null : bufferXmlPath.Trim(),
             Description = description?.Trim()
         };
         db.Equipments.Add(eq);
@@ -40,7 +41,7 @@ public class DeviceService
         return eq;
     }
 
-    public async Task UpdateAsync(int id, string equipmentId, string serverIp, int serverPort, string? description)
+    public async Task UpdateAsync(int id, string equipmentId, string serverIp, int serverPort, string? bufferXmlPath, string? description)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
         var eq = await db.Equipments.FindAsync(id);
@@ -48,6 +49,7 @@ public class DeviceService
         eq.EquipmentId = equipmentId.Trim();
         eq.ServerIp = serverIp.Trim();
         eq.ServerPort = serverPort;
+        eq.BufferXmlPath = string.IsNullOrWhiteSpace(bufferXmlPath) ? null : bufferXmlPath.Trim();
         eq.Description = description?.Trim();
         eq.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();

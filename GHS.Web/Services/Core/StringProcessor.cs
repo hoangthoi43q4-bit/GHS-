@@ -66,6 +66,22 @@ public class StringProcessor
     }
 
     /// <summary>
+    /// 生成 UNLOAD_MATERIAL 下料指令。
+    /// 格式：UNLOAD_MATERIAL,{stationName},10,{yyyyMMddHHmmssfff},
+    ///       &lt;UnLoadMaterial mat_pos_1="{position}" mat_uid_1="{uid}" tokens="3" /&gt;
+    /// - position：来自 XML 的 Position
+    /// - uid：来自 XML 的完整 Id（原样，不去零、不截 @）
+    /// - 10 与 tokens=3 按现场约定固定
+    /// </summary>
+    public string GenerateUnloadCommand(string stationName, string position, string uid, int tokens = 3)
+    {
+        string timestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+
+        return $"UNLOAD_MATERIAL,{stationName},10,{timestamp}," +
+               $"<UnLoadMaterial mat_pos_1=\"{position}\" mat_uid_1=\"{uid}\" tokens=\"{tokens}\" />";
+    }
+
+    /// <summary>
     /// Extract the material number (P segment) from raw scan input.
     /// </summary>
     public string FindMaterial(string input)

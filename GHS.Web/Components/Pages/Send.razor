@@ -5,6 +5,7 @@
 @inject StringProcessor StringProcessor
 @inject MaterialClassifier MaterialClassifier
 @inject SelectMatPos SelectMatPos
+@inject BufferMaterialService BufferService
 @inject UploadHistoryService HistoryService
 @inject IHubContext<LogHub> HubContext
 @inject NavigationManager Navigation
@@ -54,9 +55,65 @@
                         发送
                     </MudButton>
                 </MudItem>
+                <MudItem xs="6" md="2">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                               OnClick="ViewCurrentMaterialsAsync" FullWidth="true">
+                        查看当前料
+                    </MudButton>
+                </MudItem>
             </MudGrid>
         </MudPaper>
     </MudItem>
+
+    @if (_bufferMaterials != null)
+    {
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="1">
+                <div class="d-flex align-center mb-2">
+                    <MudText Typo="Typo.h6">当前在料 (LoadMaterialBufferPreserve.xml)</MudText>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" Class="mr-2"
+                               StartIcon="@Icons.Material.Filled.RemoveShoppingCart"
+                               Disabled="_unloadBusy"
+                               OnClick="UnloadAllAsync">全部下料</MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.Close"
+                               OnClick="CloseBufferMaterials">关闭</MudButton>
+                </div>
+                @if (!string.IsNullOrEmpty(_bufferError))
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mb-2">@_bufferError</MudAlert>
+                }
+                @if (_bufferMaterials.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info">未读取到在料记录。</MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="_bufferMaterials" Dense="true" Hover="true">
+                        <HeaderContent>
+                            <MudTh>站位</MudTh>
+                            <MudTh>Pos</MudTh>
+                            <MudTh>物料号</MudTh>
+                            <MudTh>完整 Id</MudTh>
+                            <MudTh>操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.EquipmentId</MudTd>
+                            <MudTd>@context.Position</MudTd>
+                            <MudTd>@context.MaterialNumber</MudTd>
+                            <MudTd>@context.RawId</MudTd>
+                            <MudTd>
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                           Disabled="_unloadBusy"
+                                           OnClick="@(() => UnloadOneAsync(context))">下料</MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudItem>
+    }
 
     <MudItem xs="12" md="6">
         <MudPaper Class="pa-4" Elevation="1">
@@ -105,6 +162,104 @@
     private List<ProjectMaterialStatusItem> _materialStatuses = new();
     private HubConnection? _hubConnection;
     private List<MaterialTypeInfo> _materialConfig = new();
+    private List<BufferMaterialItem>? _bufferMaterials;
+    private string _bufferError = "";
+
+    private async Task ViewCurrentMaterialsAsync()
+    {
+        _bufferError = "";
+        _bufferMaterials = null;
+
+        var projectId = _selectedProject.Contains(":")
+            ? int.Parse(_selectedProject.Split(':')[0])
+            : -1;
+        if (projectId <= 0)
+        {
+            _bufferMaterials = new List<BufferMaterialItem>();
+            _bufferError = "请先选择线体和项目。";
+            return;
+        }
+
+        try
+        {
+            var (items, error) = await BufferService.ReadByProjectAsync(projectId);
+            _bufferMaterials = items;
+            _bufferError = error;
+        }
+        catch (Exception ex)
+        {
+            _bufferMaterials = new List<BufferMaterialItem>();
+            _bufferError = $"读取失败: {ex.Message}";
+        }
+    }
+
+    private void CloseBufferMaterials()
+    {
+        _bufferMaterials = null;
+        _bufferError = "";
+    }
+
+    private bool _unloadBusy;
+
+    private async Task UnloadOneAsync(BufferMaterialItem item)
+    {
+        if (_unloadBusy) return;
+        _unloadBusy = true;
+        try
+        {
+            await SendUnloadAsync(item);
+        }
+        finally
+        {
+            _unloadBusy = false;
+        }
+    }
+
+    private async Task UnloadAllAsync()
+    {
+        if (_unloadBusy || _bufferMaterials == null) return;
+        _unloadBusy = true;
+        try
+        {
+            // 逐条发送单料指令（tokens 固定 3，不合并多料）
+            foreach (var item in _bufferMaterials.ToList())
+            {
+                await SendUnloadAsync(item);
+            }
+        }
+        finally
+        {
+            _unloadBusy = false;
+        }
+    }
+
+    private async Task SendUnloadAsync(BufferMaterialItem item)
+    {
+        // uid 用 XML 完整 Id（原样，不去零、不截 @）
+        string command = StringProcessor.GenerateUnloadCommand(item.EquipmentId, item.Position, item.RawId);
+
+        var result = await TcpPool.SendCommandAsync(
+            item.EquipmentDbId, item.EquipmentId, item.ServerIp, item.ServerPort, command);
+
+        await JS.InvokeVoidAsync("playBeep", result.IsAckSuccess ? "success" : "error");
+
+        var entry = new UploadHistoryEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            LineName = _selectedLineName,
+            ProjectName = _selectedProject.Contains(":")
+                ? _selectedProject.Split(':')[1]
+                : _selectedProject,
+            SubTypeName = item.MaterialNumber,
+            EquipmentId = item.EquipmentId,
+            ScanContent = item.RawId,
+            CommandSent = command,
+            Response = result.Response,
+            IsAckSuccess = result.IsAckSuccess
+        };
+        await HistoryService.AddEntryAsync(entry);
+        AddLog($"[下料记录] 站位={item.EquipmentId}, Pos={item.Position}, 物料={item.MaterialNumber}, 结果={(result.IsAckSuccess ? "ACK成功" : "未成功")}");
+    }
     private List<Equipment> _equipments = new();
     private Dictionary<int, string> _projectIdMap = new();
 
@@ -267,6 +422,7 @@
 
         //int matPos = SelectMatPos.GetMatPos(matLabel, _materialConfig);
         int matPos = int.TryParse(matched.TypeName, out var p) ? p : 0;
+
         string command = StringProcessor.GenerateLoadCommand(message, equipment.EquipmentId, matPos);
 
         var result = await TcpPool.SendCommandAsync(
@@ -309,10 +465,9 @@
                 s.SubTypeName.Contains(matLabel, StringComparison.OrdinalIgnoreCase));
             if (sub != null)
             {
-                sub.TypeName = type.TypeName; // 新增：把当前项目下该记录得POS 带出去
+                sub.TypeName = type.TypeName;   // ← 新增:把当前项目下该记录的 Pos 带出去
                 return sub;
             }
-            
         }
         return null;
     }
