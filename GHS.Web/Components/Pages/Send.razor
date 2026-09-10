@@ -10,6 +10,7 @@
 @inject IHubContext<LogHub> HubContext
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedSessionStorage SessionStorage
 @implements IAsyncDisposable
 
 <PageTitle>发送物料 — GHP HandShake Web</PageTitle>
@@ -295,11 +296,51 @@
             });
         }
 
-        if (_lineNames.Any())
+        // 注意：此处不再默认选中第一个线体。
+        // 选中值的确定统一放到 OnAfterRenderAsync：优先恢复上次选择，无存值时才取第一个。
+        // 这样避免“先渲染第一个、再恢复”导致 MudSelect 把恢复值冲回第一个的竞态。
+    }
+
+    private bool _restored;
+    private bool _restoring;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _restored) return;
+        _restored = true;
+
+        if (!_lineNames.Any()) return;
+
+        _restoring = true;
+        try
         {
-            _selectedLine = _lineNames.First();
-            await FilterProjectsByLineAsync();
+        var savedLine = await SessionStorage.GetAsync<string>("ghs_selectedLine");
+        var savedProject = await SessionStorage.GetAsync<string>("ghs_selectedProject");
+
+        // 决定最终线体：有有效存值则用它，否则第一个
+        var targetLine = (savedLine.Success && !string.IsNullOrEmpty(savedLine.Value) && _lineNames.Contains(savedLine.Value))
+            ? savedLine.Value
+            : _lineNames.First();
+
+        _selectedLine = targetLine;
+        await FilterProjectsByLineAsync();   // 会把项目默认设为第一个
+
+        // 决定最终项目：有有效存值且仍在当前线体项目列表中则恢复
+        if (savedProject.Success && !string.IsNullOrEmpty(savedProject.Value) && _filteredProjects.Contains(savedProject.Value))
+        {
+            _selectedProject = savedProject.Value;
+            await RebuildStatusPanelAsync();
         }
+
+        // 回写一次，保证存储与当前实际选中一致
+        await SessionStorage.SetAsync("ghs_selectedLine", _selectedLine);
+        await SessionStorage.SetAsync("ghs_selectedProject", _selectedProject);
+        }
+        finally
+        {
+            _restoring = false;
+        }
+
+        StateHasChanged();
     }
 
     private async Task FilterProjectsByLineAsync()
@@ -324,13 +365,19 @@
 
     private async Task OnLineChanged(IEnumerable<string> values)
     {
+        if (_restoring) return;   // 恢复期间由 OnAfterRenderAsync 统一设值，忽略 MudSelect 回调，避免把恢复值冲回第一个
         _selectedLine = values.FirstOrDefault() ?? "";
+        await SessionStorage.SetAsync("ghs_selectedLine", _selectedLine);
         await FilterProjectsByLineAsync();
+        // 线体变更后项目会被重设为第一个，同步持久化
+        await SessionStorage.SetAsync("ghs_selectedProject", _selectedProject);
     }
 
     private async Task OnProjectChanged(IEnumerable<string> values)
     {
+        if (_restoring) return;   // 恢复期间忽略 MudSelect 回调
         _selectedProject = values.FirstOrDefault() ?? "";
+        await SessionStorage.SetAsync("ghs_selectedProject", _selectedProject);
         await RebuildStatusPanelAsync();
     }
 
