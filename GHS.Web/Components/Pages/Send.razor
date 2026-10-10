@@ -449,6 +449,7 @@
                 Response = reason,
                 IsAckSuccess = false
             });
+            try { await JS.InvokeVoidAsync("playBeep", "error"); } catch { }   // ★ 新增:失败音
         }
 
         var matLabel = StringProcessor.FindMaterial(message);
