@@ -363,3 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 /GHS.Web_项目记忆.md
 /.vio/state/todos
+
+# 本地项目看板与规则（不进仓库）
+/PROJECT_CONTEXT.md
+/.vio/rules/
