@@ -10,6 +10,7 @@
 @inject IHubContext<LogHub> HubContext
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IDialogService DialogService
 @* 选中值改用浏览器 localStorage 持久化（不加密，避免 Data Protection 密钥丢失导致 CryptographicException 崩电路） *@
 @implements IAsyncDisposable
 
@@ -21,7 +22,7 @@
             <MudGrid>
                 <MudItem xs="12" md="4">
                     <MudTextField @ref="_scanFieldRef" @bind-Value="_scanInput" Label="物料标签 (Scan Label)"
-                                  Variant="Variant.Outlined" Immediate="true"
+                                  Variant="Variant.Outlined" Immediate="true" Disabled="_scanBlocked"
                                   OnKeyUp="OnScanKeyUp" AdornmentColor="Color.Primary" />
                 </MudItem>
                 <MudItem xs="6" md="2">
@@ -143,7 +144,14 @@
             <MudPaper Class="pa-2" Style="height:calc(100vh - 260px);overflow-y:auto;background:#1E293B;color:#E2E8F0;font-family:monospace;font-size:13px;">
                 @foreach (var log in _logs)
                 {
-                    <div style="padding:2px 0;border-bottom:1px solid #334155;">@log</div>
+                    @if (log.IsError)
+                    {
+                        <div style="padding:2px 0;border-bottom:1px solid #334155;font-weight:bold;color:#F87171;">@log.Text</div>
+                    }
+                    else
+                    {
+                        <div style="padding:2px 0;border-bottom:1px solid #334155;">@log.Text</div>
+                    }
                 }
             </MudPaper>
         </MudPaper>
@@ -159,7 +167,14 @@
     private MudTextField<string>? _scanFieldRef;
     private List<string> _lineNames = new();
     private List<string> _filteredProjects = new();
-    private List<string> _logs = new();
+    private List<LogEntry> _logs = new();
+    private bool _scanBlocked;
+
+    private sealed class LogEntry
+    {
+        public string Text { get; init; } = "";
+        public bool IsError { get; init; }
+    }
     private List<ProjectMaterialStatusItem> _materialStatuses = new();
     private HubConnection? _hubConnection;
     private List<MaterialTypeInfo> _materialConfig = new();
@@ -404,8 +419,10 @@
 
         _hubConnection.On<string>("ReceiveLog", (message) =>
         {
+            var isError = message.Contains("未成功") || message.Contains("失败")
+                || message.Contains("错误") || message.Contains("[错误]");
             var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
-            _logs.Add(line);
+            _logs.Add(new LogEntry { Text = line, IsError = isError });
             if (_logs.Count > 500) _logs.RemoveAt(0);
             InvokeAsync(StateHasChanged);
         });
@@ -415,6 +432,7 @@
 
     private async Task OnScanKeyUp(KeyboardEventArgs e)
     {
+        if (_scanBlocked) return;   // 未人工确认失败前，屏蔽扫码枪回车
         if (e.Key == "Enter")
         {
             var message = _scanInput.Trim();
@@ -428,6 +446,7 @@
 
     private async Task SendMessageAsync()
     {
+        if (_scanBlocked) return;   // 未人工确认失败前，屏蔽发送
         var message = _scanInput.Trim();
         _scanInput = "";
         StateHasChanged();
@@ -449,14 +468,14 @@
                 Response = reason,
                 IsAckSuccess = false
             });
-            try { await JS.InvokeVoidAsync("playBeep", "error"); } catch { }   // ★ 新增:失败音
+            // 失败音统一由 HandleScanFailAsync 触发，避免重复响两声
         }
 
         var matLabel = StringProcessor.FindMaterial(message);
         if (string.IsNullOrEmpty(matLabel))
         {
-            AddLog("发送内容中不包含物料信息！");
             await LogFailAsync("发送内容中不包含物料信息");
+            await HandleScanFailAsync("发送内容中不包含物料信息！");
             return;
         }
 
@@ -465,17 +484,16 @@
         var matched = FindMaterial(matLabel);
         if (matched == null)
         {
-            AddLog($"[错误] 配置中未找到物料 '{matLabel}'。");
             await LogFailAsync($"配置中未找到物料 '{matLabel}'", matLabel);
+            await HandleScanFailAsync($"[错误] 配置中未找到物料 '{matLabel}'。");
             return;
         }
 
         var equipment = _equipments.FirstOrDefault(e => e.EquipmentId == matched.AssociatedMachineName);
         if (equipment == null)
         {
-            AddLog($"[错误] 物料关联的设备 '{matched.AssociatedMachineName}' 不存在。");
             await LogFailAsync($"物料关联的设备 '{matched.AssociatedMachineName}' 不存在", matLabel);
-
+            await HandleScanFailAsync($"[错误] 物料关联的设备 '{matched.AssociatedMachineName}' 不存在。");
             return;
         }
 
@@ -492,7 +510,8 @@
             equipment.Id, equipment.EquipmentId, equipment.ServerIp, equipment.ServerPort, command);
 
         SetMaterialStatus(matLabel, result.IsAckSuccess ? "上传成功" : "上传未成功");
-        await JS.InvokeVoidAsync("playBeep", result.IsAckSuccess ? "success" : "error");
+        if (result.IsAckSuccess)
+            await JS.InvokeVoidAsync("playBeep", "success");   // 失败音由 HandleScanFailAsync 统一触发
 
         var entry = new UploadHistoryEntry
         {
@@ -510,7 +529,10 @@
             IsAckSuccess = result.IsAckSuccess
         };
         await HistoryService.AddEntryAsync(entry);
-        AddLog($"[上料记录] 线体={_selectedLineName}, 项目={_selectedProject}, Pos={matched.TypeName}, 物料={matLabel}, 结果={(result.IsAckSuccess ? "ACK成功" : "未成功")}");
+        AddLog($"[上料记录] 线体={_selectedLineName}, 项目={_selectedProject}, Pos={matched.TypeName}, 物料={matLabel}, 结果={(result.IsAckSuccess ? "ACK成功" : "未成功")}", isError: !result.IsAckSuccess);
+
+        if (!result.IsAckSuccess)
+            await HandleScanFailAsync($"[错误] 设备 {equipment.EquipmentId} 上料未成功 (ACK失败)，物料={matLabel}。");
     }
 
 
@@ -572,11 +594,32 @@
             target.UploadStatus = status;
     }
 
-    private void AddLog(string message)
+    private void AddLog(string message, bool isError = false)
     {
         var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
-        _logs.Add(line);
+        _logs.Add(new LogEntry { Text = line, IsError = isError });
         if (_logs.Count > 500) _logs.RemoveAt(0);
+    }
+
+    // 扫描失败：标红日志 + 失败音 + 弹窗阻断扫码，人工确认后解禁
+    private async Task HandleScanFailAsync(string reason)
+    {
+        AddLog(reason, isError: true);
+        try { await JS.InvokeVoidAsync("playBeep", "error"); } catch { }
+        await BlockScanUntilConfirmedAsync(reason);
+    }
+
+    private async Task BlockScanUntilConfirmedAsync(string reason)
+    {
+        _scanBlocked = true;
+        StateHasChanged();
+        await DialogService.ShowMessageBox(
+            "⚠ 扫描失败",
+            (MarkupString)$"<b style=\"color:#D32F2F\">{reason}</b><br/>请检查后点击“确认”继续扫码。",
+            yesText: "确认");
+        _scanBlocked = false;
+        StateHasChanged();
+        try { await _scanFieldRef!.FocusAsync(); } catch { }
     }
 
     private static Color GetStatusColor(string status) => status switch
