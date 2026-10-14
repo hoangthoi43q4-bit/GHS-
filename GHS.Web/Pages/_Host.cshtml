@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @using Microsoft.AspNetCore.Components.Web
 @namespace GHS.Web.Pages
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
@@ -39,7 +39,7 @@
         window.clearActiveInput = () => {
             var el = document.activeElement;
             if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                // 保存光标位置的目标值后再清空
+                // 用原生 setter 清空输入框的值并触发事件
                 var nativeInputValueSetter = Object.getOwnPropertyDescriptor(
                     window.HTMLInputElement.prototype, 'value').set;
                 nativeInputValueSetter.call(el, '');
@@ -47,8 +47,45 @@
                 el.dispatchEvent(new Event('change', { bubbles: true }));
             }
         };
-               window.playBeep = (type) => {
+        window.playBeep = (type) => {
             try {
+                // 失败音：按类型播放自定义 mp3 文件；文件缺失时回退到合成蜂鸣
+                var failFiles = {
+                    'fail_ack': 'sounds/fail_ack.mp3',   // 上料 ACK 失败
+                    'fail_scan': 'sounds/fail_scan.mp3'  // 扫码/校验失败
+                    // 下料失败传 error_synth(不在表内) -> 走合成蜂鸣
+                };
+                var synthFail = (ctx, play) => {
+                    // 失败音：高低交替的刺耳方波，循环五声，急促警示
+                    play(1600, 0.0,  0.18, 1.0, 'square');
+                    play(1000, 0.18, 0.18, 1.0, 'square');
+                    play(1600, 0.36, 0.18, 1.0, 'square');
+                    play(1000, 0.54, 0.18, 1.0, 'square');
+                    play(1600, 0.72, 0.25, 1.0, 'square');
+                };
+                if (type !== 'success' && failFiles[type]) {
+                    var audio = new Audio(failFiles[type]);
+                    audio.volume = 1.0;
+                    audio.play().catch(function () {
+                        try {
+                            var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            var play = (freq, start, dur, vol, wave) => {
+                                var o = ctx.createOscillator();
+                                var g = ctx.createGain();
+                                o.connect(g); g.connect(ctx.destination);
+                                o.frequency.value = freq;
+                                o.type = wave || 'sine';
+                                g.gain.setValueAtTime(0.001, ctx.currentTime + start);
+                                g.gain.exponentialRampToValueAtTime(vol || 0.4, ctx.currentTime + start + 0.02);
+                                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+                                o.start(ctx.currentTime + start);
+                                o.stop(ctx.currentTime + start + dur);
+                            };
+                            synthFail(ctx, play);
+                        } catch (e2) { console.error('playBeep fallback error', e2); }
+                    });
+                    return;
+                }
                 var ctx = new (window.AudioContext || window.webkitAudioContext)();
                 var play = (freq, start, dur, vol, wave) => {
                     var o = ctx.createOscillator();
@@ -66,12 +103,7 @@
                     play(1080, 0, 0.15, 1.0);
                     play(1375, 0.15, 0.2, 1.0);
                 } else {
-                    // 失败:救护车式高低交替 + 刺耳,循环两轮,最大音量方波
-                    play(1600, 0.0,  0.18, 1.0, 'square');   // 高
-                    play(1000, 0.18, 0.18, 1.0, 'square');   // 低
-                    play(1600, 0.36, 0.18, 1.0, 'square');   // 高
-                    play(1000, 0.54, 0.18, 1.0, 'square');   // 低
-                    play(1600, 0.72, 0.25, 1.0, 'square');   // 高(拖长收尾)
+                    synthFail(ctx, play);
                 }
             } catch (e) { console.error('playBeep error', e); }
         };

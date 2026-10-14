@@ -257,7 +257,7 @@
         var result = await TcpPool.SendCommandAsync(
             item.EquipmentDbId, item.EquipmentId, item.ServerIp, item.ServerPort, command);
 
-        await JS.InvokeVoidAsync("playBeep", result.IsAckSuccess ? "success" : "error");
+        await JS.InvokeVoidAsync("playBeep", result.IsAckSuccess ? "success" : "error_synth");   // 下料失败走原合成蜂鸣
 
         var entry = new UploadHistoryEntry
         {
@@ -532,7 +532,7 @@
         AddLog($"[上料记录] 线体={_selectedLineName}, 项目={_selectedProject}, Pos={matched.TypeName}, 物料={matLabel}, 结果={(result.IsAckSuccess ? "ACK成功" : "未成功")}", isError: !result.IsAckSuccess);
 
         if (!result.IsAckSuccess)
-            await HandleScanFailAsync($"[错误] 设备 {equipment.EquipmentId} 上料未成功 (ACK失败)，物料={matLabel}。");
+            await HandleScanFailAsync($"[错误] 设备 {equipment.EquipmentId} 上料未成功 (ACK失败)，物料={matLabel}。", "fail_ack");
     }
 
 
@@ -602,10 +602,10 @@
     }
 
     // 扫描失败：标红日志 + 失败音 + 弹窗阻断扫码，人工确认后解禁
-    private async Task HandleScanFailAsync(string reason)
+    private async Task HandleScanFailAsync(string reason, string soundType = "fail_scan")
     {
         AddLog(reason, isError: true);
-        try { await JS.InvokeVoidAsync("playBeep", "error"); } catch { }
+        try { await JS.InvokeVoidAsync("playBeep", soundType); } catch { }
         await BlockScanUntilConfirmedAsync(reason);
     }
 
